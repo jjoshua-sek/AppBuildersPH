@@ -18,6 +18,7 @@ export function HomeScreen({ go }: { go(r: Route): void }) {
           {stats.modelName} · {stats.gpu ? 'GPU' : `CPU, ${stats.nThreads} threads`}
         </Text>
       </View>
+      <Button title="Add notes" onPress={() => go('ingest')} />
       <Button title="Proof panel" onPress={() => go('proof')} />
       <Button title="DevBench" onPress={() => go('devbench')} />
     </ScrollView>

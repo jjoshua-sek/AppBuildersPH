@@ -8,6 +8,7 @@ import { SplashScreen } from '../screens/SplashScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProofPanelScreen } from '../screens/ProofPanelScreen';
 import { DevBenchScreen } from '../screens/DevBenchScreen';
+import { IngestScreen } from '../screens/IngestScreen';
 
 export default function App() {
   const ready = useAiStore(s => s.status === 'ready');
@@ -33,6 +34,9 @@ export default function App() {
           <ProofPanelScreen onBack={home} />
         ) : route === 'devbench' ? (
           <DevBenchScreen onBack={home} />
+        ) : route === 'ingest' ? (
+          // Lane C: send Play to the crossword; useDeckStore.currentDocId is the deck.
+          <IngestScreen onBack={home} onPlay={home} />
         ) : (
           <HomeScreen go={setRoute} />
         )}
