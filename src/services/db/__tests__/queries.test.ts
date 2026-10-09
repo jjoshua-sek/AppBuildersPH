@@ -1,5 +1,5 @@
 import { SAMPLE_TERMS } from '../../../assets/sample';
-import { connect, getDb, migrate, type SqlDb, type SqlValue } from '../client';
+import { connect, getDb, migrate } from '../client';
 import {
   getChunk,
   getDailyTerm,
@@ -7,21 +7,9 @@ import {
   getTerms,
   logAttempt,
   saveWhy,
+  setSelectedTerms,
 } from '../queries';
-
-/** In-memory SQLite (Node's built-in, with FTS5) behind the same interface as op-sqlite. */
-function memoryDb(): SqlDb {
-  const { DatabaseSync } = require('node:sqlite');
-  const d = new DatabaseSync(':memory:');
-  return {
-    async execute(sql: string, params: SqlValue[] = []) {
-      const st = d.prepare(sql);
-      if (/^\s*(SELECT|WITH)\b/i.test(sql)) return { rows: st.all(...params) };
-      st.run(...params);
-      return { rows: [] };
-    },
-  };
-}
+import { memoryDb } from '../testing/memoryDb';
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date(2026, 9, 9, 12); // local noon, so the day key is stable
@@ -111,6 +99,14 @@ describe('term queries', () => {
     expect(sel.map(t => t.id)).toEqual(
       SAMPLE_TERMS.filter((_, i) => i % 2).map(t => t.id),
     );
+  });
+
+  it('setSelectedTerms replaces the selection, and an empty list clears it', async () => {
+    const ids = SAMPLE_TERMS.slice(0, 3).map(t => t.id);
+    await setSelectedTerms('sample', ids);
+    expect((await getSelectedTerms('sample')).map(t => t.id)).toEqual(ids);
+    await setSelectedTerms('sample', []);
+    expect(await getSelectedTerms('sample')).toEqual([]);
   });
 
   it('saveWhy stores the card, including a null why', async () => {

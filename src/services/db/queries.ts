@@ -115,3 +115,83 @@ export async function saveWhy(termId: string, card: WhyCard): Promise<void> {
     [card.description, card.why, termId],
   );
 }
+
+/* ---- Ingest writes (Lane B's pipeline only) ---- */
+
+export async function insertDocument(d: {
+  id: string;
+  title: string;
+  source: string;
+  created_at: number;
+}): Promise<void> {
+  await getDb().execute(
+    'INSERT INTO documents (id, title, source, created_at) VALUES (?,?,?,?)',
+    [d.id, d.title, d.source, d.created_at],
+  );
+}
+
+/** Stores a chunk, its embedding, and its FTS5 row (chunks are never edited, so no triggers). */
+export async function insertChunk(
+  c: ChunkRow & { embedding: Float32Array },
+): Promise<void> {
+  const db = getDb();
+  const e = c.embedding;
+  const blob = e.buffer.slice(
+    e.byteOffset,
+    e.byteOffset + e.byteLength,
+  ) as ArrayBuffer;
+  await db.execute(
+    'INSERT INTO chunks (id, doc_id, idx, text, embedding) VALUES (?,?,?,?,?)',
+    [c.id, c.doc_id, c.idx, c.text, blob],
+  );
+  await db.execute(
+    'INSERT INTO chunks_fts (text, chunk_id, doc_id) VALUES (?,?,?)',
+    [c.text, c.id, c.doc_id],
+  );
+}
+
+/** Inserts a new, unselected term. A repeated answer in the same document is ignored. */
+export async function insertTerm(
+  t: Pick<TermRow, 'id' | 'doc_id' | 'chunk_id' | 'term' | 'answer' | 'clue'>,
+): Promise<void> {
+  await getDb().execute(
+    'INSERT OR IGNORE INTO terms (id, doc_id, chunk_id, term, answer, clue) VALUES (?,?,?,?,?,?)',
+    [t.id, t.doc_id, t.chunk_id, t.term, t.answer, t.clue],
+  );
+}
+
+/** Marks exactly these terms as the crossword's (selected = 1); all others in the document get 0. */
+export async function setSelectedTerms(
+  docId: string,
+  termIds: string[],
+): Promise<void> {
+  const inList = termIds.length
+    ? `id IN (${termIds.map(() => '?').join(',')})`
+    : '0';
+  await getDb().execute(
+    `UPDATE terms SET selected = CASE WHEN ${inList} THEN 1 ELSE 0 END WHERE doc_id = ?`,
+    [...termIds, docId],
+  );
+}
+
+export type PendingWhy = {
+  id: string;
+  term: string;
+  clue: string;
+  text: string;
+};
+
+/** Selected terms still waiting for a "why it matters" card, with their source passage. */
+export async function getPendingWhy(docId: string): Promise<PendingWhy[]> {
+  const { rows } = await getDb().execute(
+    `SELECT t.id, t.term, t.clue, c.text FROM terms t JOIN chunks c ON c.id = t.chunk_id
+     WHERE t.doc_id = ? AND t.selected = 1 AND t.why IS NULL ORDER BY t.rowid`,
+    [docId],
+  );
+  return rows.map(r => ({
+    id: String(r.id),
+    term: String(r.term),
+    clue: String(r.clue),
+    text: String(r.text),
+  }));
+}
