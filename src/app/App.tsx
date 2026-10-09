@@ -11,6 +11,7 @@ import { DevBenchScreen } from '../screens/DevBenchScreen';
 import { UiCheckScreen } from '../screens/UiCheckScreen';
 import { IngestScreen } from '../screens/IngestScreen';
 import { AskNotesScreen } from '../screens/AskNotesScreen';
+import { ReviewTermsScreen } from '../screens/ReviewTermsScreen';
 import { open } from '@op-engineering/op-sqlite';
 import { bridge, profile, stats } from '../services/ai/llamaBridge';
 import { ocrAvailable, pickAndRead, snapAndRead } from '../services/ingest/ocr';
@@ -56,8 +57,20 @@ export default function App() {
           <DevBenchScreen onBack={home} onUiCheck={() => setRoute('uicheck')} />
         ) : route === 'uicheck' ? (
           <UiCheckScreen onBack={() => setRoute('devbench')} />
-        ) : route === 'ingest' ? (
+        ) : route === 'review' && currentDocId ? (
+          <ReviewTermsScreen
+            docId={currentDocId}
+            onBack={home}
+            onPlay={home} // Lane C: go to the crossword route here once it exists
+          />
+        ) : route === 'ingest' || route === 'addpage' ? (
           <IngestScreen
+            key={route} // a fresh screen for each mode
+            appendTo={route === 'addpage' ? currentDocId ?? undefined : undefined}
+            onReview={docId => {
+              setCurrentDeck(docId);
+              setRoute('review');
+            }}
             bridge={bridge}
             profile={profile}
             onBack={home}

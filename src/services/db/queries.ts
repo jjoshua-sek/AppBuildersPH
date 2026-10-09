@@ -200,6 +200,69 @@ export async function keywordChunkIds(
   return new Set(rows.map(r => String(r.chunk_id)));
 }
 
+/* ---- Reviewing terms (the Review screen, via ingest/review.ts) ---- */
+
+export async function getTerm(id: string): Promise<TermRow | null> {
+  const { rows } = await getDb().execute(
+    `SELECT ${TERM_COLS} FROM terms t WHERE t.id = ?`,
+    [id],
+  );
+  return rows[0] ? toTerm(rows[0]) : null;
+}
+
+/** True when another term in the deck already has this answer. */
+export async function answerTaken(
+  docId: string,
+  answer: string,
+  exceptId: string,
+): Promise<boolean> {
+  const { rows } = await getDb().execute(
+    'SELECT 1 AS x FROM terms WHERE doc_id = ? AND answer = ? AND id != ?',
+    [docId, answer, exceptId],
+  );
+  return rows.length > 0;
+}
+
+/** Saves an edit. The old "why it matters" card no longer fits, so it is cleared for regeneration. */
+export async function updateTerm(
+  id: string,
+  t: { term: string; answer: string; clue: string },
+): Promise<void> {
+  await getDb().execute(
+    'UPDATE terms SET term = ?, answer = ?, clue = ?, description = NULL, why = NULL WHERE id = ?',
+    [t.term, t.answer, t.clue, id],
+  );
+}
+
+/** Deletes a term with its attempts and any Daily Term pick of it. */
+export async function deleteTerm(id: string): Promise<void> {
+  const db = getDb();
+  await db.execute('DELETE FROM daily WHERE term_id = ?', [id]);
+  await db.execute('DELETE FROM attempts WHERE term_id = ?', [id]);
+  await db.execute('DELETE FROM terms WHERE id = ?', [id]);
+}
+
+/* ---- Adding pages to a deck ---- */
+
+export async function getDocument(
+  id: string,
+): Promise<{ id: string; title: string } | null> {
+  const { rows } = await getDb().execute(
+    'SELECT id, title FROM documents WHERE id = ?',
+    [id],
+  );
+  return rows[0] ? { id: String(rows[0].id), title: String(rows[0].title) } : null;
+}
+
+/** The idx the next chunk of this document gets (0 for a new document). */
+export async function nextChunkIdx(docId: string): Promise<number> {
+  const { rows } = await getDb().execute(
+    'SELECT COALESCE(MAX(idx) + 1, 0) AS n FROM chunks WHERE doc_id = ?',
+    [docId],
+  );
+  return Number(rows[0]?.n ?? 0);
+}
+
 /* ---- Ingest writes (Lane B's pipeline only) ---- */
 
 export async function insertDocument(d: {

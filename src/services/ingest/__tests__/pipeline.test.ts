@@ -273,6 +273,113 @@ describe('ingest', () => {
   });
 });
 
+describe('ingest with appendTo (add a page to a deck)', () => {
+  // Page 1 is the handout's first half, page 2 the rest: different terms on each.
+  const words = TEXT.split(/\s+/);
+  const PAGE1 = words.slice(0, 170).join(' ');
+  const PAGE2 = words.slice(170).join(' ');
+  const answersIn = (text: string) =>
+    SAMPLE_TERMS.filter(t => inText(t.term, text)).map(t => t.answer);
+
+  it("adds chunks after the deck's own and keeps one document", async () => {
+    const bridge = scriptedBridge();
+    const first = await ingest(bridge, P, {
+      title: 'Ch 1',
+      source: 'camera',
+      text: PAGE1,
+    });
+    const before = await count(
+      'SELECT count(*) n FROM chunks WHERE doc_id = ?',
+      [first.docId],
+    );
+    const res = await ingest(
+      bridge,
+      P,
+      { title: 'ignored', source: 'camera', text: PAGE2 },
+      () => {},
+      { cancelled: false },
+      { appendTo: first.docId },
+    );
+    expect(res.docId).toBe(first.docId);
+    expect(await count('SELECT count(*) n FROM documents')).toBe(1);
+    const { rows } = await getDb().execute(
+      'SELECT id, idx FROM chunks WHERE doc_id = ? ORDER BY idx',
+      [first.docId],
+    );
+    expect(rows.map(r => Number(r.idx))).toEqual(rows.map((_, i) => i)); // 0..n-1, no clash
+    expect(rows.length).toBeGreaterThan(before);
+    expect(rows.map(r => String(r.id))).toEqual(
+      rows.map((_, i) => `${first.docId}:${i}`),
+    );
+  });
+
+  it('skips answers the deck already has and counts the whole deck', async () => {
+    const bridge = scriptedBridge();
+    const first = await ingest(bridge, P, {
+      title: 'Ch 1',
+      source: 'paste',
+      text: PAGE1,
+    });
+    const res = await ingest(
+      bridge,
+      P,
+      { title: 'x', source: 'paste', text: PAGE2 },
+      () => {},
+      undefined,
+      {
+        appendTo: first.docId,
+      },
+    );
+    const terms = await getTerms(first.docId);
+    expect(new Set(terms.map(t => t.answer)).size).toBe(terms.length);
+    expect(res.found).toBe(terms.length);
+    const expected = new Set([...answersIn(PAGE1), ...answersIn(PAGE2)]);
+    expect(new Set(terms.map(t => t.answer))).toEqual(expected);
+  });
+
+  it('re-selects the puzzle across both pages', async () => {
+    const bridge = scriptedBridge();
+    const first = await ingest(bridge, P, {
+      title: 'Ch 1',
+      source: 'paste',
+      text: PAGE1,
+    });
+    await ingest(
+      bridge,
+      P,
+      { title: 'x', source: 'paste', text: PAGE2 },
+      () => {},
+      undefined,
+      {
+        appendTo: first.docId,
+      },
+    );
+    const sel = await getSelectedTerms(first.docId);
+    const pageOf = (chunkId: string) =>
+      Number(chunkId.split(':').pop()) < chunk(PAGE1, P.chunkWords, 30).length
+        ? 1
+        : 2;
+    expect(new Set(sel.map(t => pageOf(t.chunk_id)))).toEqual(new Set([1, 2]));
+    expect(sel.length).toBeLessThanOrEqual(10);
+  });
+
+  it('fails cleanly for a deck that does not exist', async () => {
+    await expect(
+      ingest(
+        scriptedBridge(),
+        P,
+        { title: 'x', source: 'paste', text: PAGE2 },
+        () => {},
+        undefined,
+        {
+          appendTo: 'nope',
+        },
+      ),
+    ).rejects.toThrow('Deck not found');
+    expect(await count('SELECT count(*) n FROM chunks')).toBe(0);
+  });
+});
+
 describe('fillWhyCards', () => {
   it('fills a card for every selected term', async () => {
     const bridge = scriptedBridge();

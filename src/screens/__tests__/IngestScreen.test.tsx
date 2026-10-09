@@ -7,7 +7,8 @@ import { connect } from '../../services/db/client';
 import { memoryDb } from '../../services/db/testing/memoryDb';
 import { PROFILES } from '../../services/device/deviceProfile';
 import type { AiBridge } from '../../types';
-import { deckStore } from '../../store/useDeckStore';
+import { getTerms } from '../../services/db/queries';
+import { deckStore, startIngest } from '../../store/useDeckStore';
 import { IngestScreen, MIN_WORDS, progressLine } from '../IngestScreen';
 
 const { act } = ReactTestRenderer;
@@ -207,6 +208,70 @@ it('goes back', async () => {
   await render({ onBack });
   await act(async () => byId('back').props.onPress());
   expect(onBack).toHaveBeenCalled();
+});
+
+describe('adding pages to a deck', () => {
+  const words = SAMPLE_TEXT.split(/\s+/);
+  const PAGE1 = words.slice(0, 170).join(' ');
+  const PAGE2 = words.slice(170).join(' ');
+
+  it('after a deck is read, adds the next page to the same deck', async () => {
+    await render();
+    await act(async () => byId('notes').props.onChangeText(PAGE1));
+    await act(async () => byId('title').props.onChangeText('Chapter 1'));
+    await act(async () => {
+      byId('generate').props.onPress();
+    });
+    await until(() => deckStore.getState().status === 'done');
+    const docId = deckStore.getState().currentDocId!;
+    const firstCount = (await getTerms(docId)).length;
+
+    await act(async () => byId('add-page').props.onPress());
+    expect(byId('notes').props.value).toBe('');
+    expect(has('title')).toBe(false); // the deck already has one
+    expect(textOf('append-target')).toMatch(
+      /^to Chapter 1 · \d+ terms? so far$/,
+    );
+
+    await act(async () => byId('notes').props.onChangeText(PAGE2));
+    await act(async () => {
+      byId('generate').props.onPress();
+    });
+    await until(() => deckStore.getState().status === 'done');
+    expect(deckStore.getState().currentDocId).toBe(docId);
+    expect(deckStore.getState().decks).toHaveLength(1);
+    expect((await getTerms(docId)).length).toBeGreaterThan(firstCount);
+  }, 15000);
+
+  it('opens in add-a-page mode with Play available, and can switch to a new deck', async () => {
+    await startIngest(bridge(), P, {
+      title: 'Ch 1',
+      source: 'paste',
+      text: SAMPLE_TEXT,
+    });
+    const docId = deckStore.getState().currentDocId!;
+    const onPlay = await render({ appendTo: docId });
+    expect(textOf('append-target')).toMatch(/^to Ch 1 · /);
+    expect(disabled('play')).toBe(false);
+    await act(async () => byId('play').props.onPress());
+    expect(onPlay).toHaveBeenCalledWith(docId);
+    await act(async () => byId('new-deck').props.onPress());
+    expect(has('append-target')).toBe(false);
+    expect(has('title')).toBe(true);
+  });
+
+  it('offers Review terms once the deck is read', async () => {
+    const onReview = jest.fn();
+    await render({ onReview });
+    expect(has('review')).toBe(false);
+    await act(async () => byId('sample').props.onPress());
+    await act(async () => {
+      byId('generate').props.onPress();
+    });
+    await until(() => deckStore.getState().status === 'done');
+    await act(async () => byId('review').props.onPress());
+    expect(onReview).toHaveBeenCalledWith(deckStore.getState().currentDocId);
+  });
 });
 
 describe('progressLine', () => {

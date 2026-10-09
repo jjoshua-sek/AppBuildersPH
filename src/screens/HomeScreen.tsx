@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ui } from '../app/theme';
 import { Button } from '../components/Button';
 import { stats } from '../services/ai/llamaBridge';
@@ -44,6 +44,16 @@ export function HomeScreen({ go }: { go(r: Route): void }) {
           </Text>
         )}
       </View>
+      {current && (
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <Button title="📄 Add a page" onPress={() => go('addpage')} />
+          </View>
+          <View style={styles.half}>
+            <Button title="✏️ Review terms" onPress={() => go('review')} />
+          </View>
+        </View>
+      )}
       <Button title="📸 Add notes" onPress={() => go('ingest')} />
       <Button
         title="🔎 Ask my notes"
@@ -55,3 +65,8 @@ export function HomeScreen({ go }: { go(r: Route): void }) {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 10 },
+  half: { flex: 1 },
+});

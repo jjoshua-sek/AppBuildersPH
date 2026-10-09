@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { colors, ui } from '../app/theme';
+import { ActionButton } from '../components/ActionButton';
 import { SAMPLE_TEXT, SAMPLE_TITLE } from '../assets/sample';
 import type { Profile } from '../services/device/deviceProfile';
 import { MIN_TERMS_TO_PLAY, type Progress } from '../services/ingest/pipeline';
@@ -33,6 +33,10 @@ export type IngestScreenProps = {
   snapPage?: () => Promise<string>;
   /** Existing photo + OCR: pass `pickAndRead`. Safer on stage: a pre-tested page. */
   pickPage?: () => Promise<string>;
+  /** Open in "add a page" mode for this deck instead of starting a new one. */
+  appendTo?: string;
+  /** Shows "Review terms" once a deck is read. */
+  onReview?(docId: string): void;
 };
 
 /** Thrown by ingest/ocr.ts when the student backs out of the camera or picker. */
@@ -81,8 +85,11 @@ export function IngestScreen({
   onBack,
   snapPage,
   pickPage,
+  appendTo,
+  onReview,
 }: IngestScreenProps) {
   const status = useDeckStore(s => s.status);
+  const decks = useDeckStore(s => s.decks);
   const progress = useDeckStore(s => s.progress);
   const error = useDeckStore(s => s.error);
   const docId = useDeckStore(s => s.currentDocId);
@@ -94,6 +101,9 @@ export function IngestScreen({
   const [snapping, setSnapping] = useState(false);
   const [snapError, setSnapError] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
+  // The deck this text is added to as another page; null starts a new deck.
+  const [target, setTarget] = useState<string | null>(appendTo ?? null);
+  const targetDeck = decks.find(d => d.id === target);
 
   const reading = status === 'reading';
   const words = wordCount(text);
@@ -130,12 +140,40 @@ export function IngestScreen({
 
   const generate = async () => {
     setStopping(false);
-    await startIngest(bridge, profile, {
-      title: title.trim() || `Notes ${new Date().toLocaleDateString('en-CA')}`,
-      source,
-      text,
-    });
+    await startIngest(
+      bridge,
+      profile,
+      {
+        title:
+          title.trim() || `Notes ${new Date().toLocaleDateString('en-CA')}`,
+        source,
+        text,
+      },
+      target ? { appendTo: target } : {},
+    );
   };
+
+  /** Next page of the deck just read: same deck, empty box. */
+  const addPage = () => {
+    if (!docId) return;
+    setTarget(docId);
+    setText('');
+    setSource('paste');
+    setSnapError(null);
+    resetIngest();
+  };
+
+  const newDeck = () => {
+    setTarget(null);
+    resetIngest();
+  };
+
+  const playDocId = docId ?? target;
+  // Adding a page to a deck that already plays: Play stays available before Generate.
+  const canPlayNow =
+    playable ||
+    (!reading && !progress && (targetDeck?.terms ?? 0) >= MIN_TERMS_TO_PLAY);
+  const done = status === 'done' && !!docId;
 
   const stop = () => {
     setStopping(true);
@@ -150,14 +188,21 @@ export function IngestScreen({
       contentContainerStyle={[ui.content, ui.top]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={ui.title}>Add your notes</Text>
-      <Text style={ui.muted}>
-        Snap a handout or paste text. Everything stays on this phone.
-      </Text>
+      <Text style={ui.title}>{target ? 'Add a page' : 'Add your notes'}</Text>
+      {target ? (
+        <Text style={ui.muted} testID="append-target">
+          to {targetDeck?.title ?? 'this deck'}
+          {targetDeck ? ` · ${plural(targetDeck.terms, 'term')} so far` : ''}
+        </Text>
+      ) : (
+        <Text style={ui.muted}>
+          Snap a handout or paste text. Everything stays on this phone.
+        </Text>
+      )}
 
       <View style={styles.row}>
         {snapPage && (
-          <Btn
+          <ActionButton
             testID="snap"
             label={snapping ? 'Reading photo…' : '📷 Snap a page'}
             onPress={() => snap(snapPage)}
@@ -165,7 +210,7 @@ export function IngestScreen({
           />
         )}
         {pickPage && (
-          <Btn
+          <ActionButton
             testID="pick"
             label="🖼 From photos"
             onPress={() => snap(pickPage)}
@@ -173,7 +218,7 @@ export function IngestScreen({
             ghost
           />
         )}
-        <Btn
+        <ActionButton
           testID="sample"
           label="Use sample handout"
           onPress={useSample}
@@ -183,15 +228,17 @@ export function IngestScreen({
       </View>
       {snapError && <Text style={[ui.text, ui.danger]}>{snapError}</Text>}
 
-      <TextInput
-        testID="title"
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Title (optional), e.g. IT Audit Ch. 1"
-        placeholderTextColor={colors.muted}
-        editable={!reading}
-        style={styles.input}
-      />
+      {!target && (
+        <TextInput
+          testID="title"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Title (optional), e.g. IT Audit Ch. 1"
+          placeholderTextColor={colors.muted}
+          editable={!reading}
+          style={styles.input}
+        />
+      )}
       <TextInput
         testID="notes"
         value={text}
@@ -209,7 +256,7 @@ export function IngestScreen({
       </Text>
 
       {reading ? (
-        <Btn
+        <ActionButton
           testID="stop"
           label={stopping ? 'Stopping after this chunk…' : '■ Stop'}
           onPress={stop}
@@ -217,7 +264,7 @@ export function IngestScreen({
           ghost
         />
       ) : (
-        <Btn
+        <ActionButton
           testID="generate"
           label="Generate puzzle"
           onPress={generate}
@@ -244,42 +291,41 @@ export function IngestScreen({
         </Text>
       )}
 
-      <Btn
+      {done && (
+        <View style={styles.row}>
+          <ActionButton
+            testID="add-page"
+            label="📄 Add another page"
+            onPress={addPage}
+            ghost
+          />
+          {onReview && (
+            <ActionButton
+              testID="review"
+              label="✏️ Review terms"
+              onPress={() => onReview(docId)}
+              ghost
+            />
+          )}
+        </View>
+      )}
+
+      <ActionButton
         testID="play"
         label={reading && playable ? '▶ Play now (still reading)' : '▶ Play'}
-        onPress={() => docId && onPlay(docId)}
-        disabled={!playable || !docId}
+        onPress={() => playDocId && onPlay(playDocId)}
+        disabled={!canPlayNow || !playDocId}
       />
-      <Btn testID="back" label="Back" onPress={onBack} ghost />
+      {target && !reading && (
+        <ActionButton
+          testID="new-deck"
+          label="Start a new deck instead"
+          onPress={newDeck}
+          ghost
+        />
+      )}
+      <ActionButton testID="back" label="Back" onPress={onBack} ghost />
     </ScrollView>
-  );
-}
-
-/** Like components/Button, plus a testID and an outlined style. */
-function Btn(props: {
-  testID: string;
-  label: string;
-  onPress(): void;
-  disabled?: boolean;
-  ghost?: boolean;
-}) {
-  return (
-    <Pressable
-      testID={props.testID}
-      onPress={props.onPress}
-      disabled={props.disabled}
-      accessibilityRole="button"
-      accessibilityState={{ disabled: !!props.disabled }}
-      style={[
-        ui.button,
-        props.ghost && styles.ghost,
-        props.disabled && ui.buttonDisabled,
-      ]}
-    >
-      <Text style={[ui.buttonText, props.ghost && styles.ghostText]}>
-        {props.label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -302,10 +348,4 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   notes: { minHeight: 220, maxHeight: 360 },
-  ghost: {
-    backgroundColor: 'transparent',
-    borderColor: colors.accent,
-    borderWidth: 1.5,
-  },
-  ghostText: { color: colors.accent },
 });
