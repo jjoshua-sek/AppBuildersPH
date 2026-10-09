@@ -3,9 +3,20 @@
 Paste DevBench reports here, one block per phone × model. See `docs/RUNTIME_SETUP.md` §5.
 
 ## Decision
-- **Chosen LLM:** _TBD_ (Gemma 3 1B IT Q8_0 is the working baseline)
-- **Why:** _TBD (numbers from the Infinix Hot 50 Pro+)_
-- **`deviceProfile.ts` settings so far:** `android-cpu` uses **2 threads** (fastest generation in the sweep) and `extractTokens` 320.
+- **Chosen LLM: Gemma 3 1B IT, Q4_0**, made with `llama-quantize --pure` from the F16 file in `ggml-org/gemma-3-1b-it-GGUF` (569 MB).
+- **Embeddings:** snowflake-arctic-embed-xs Q8_0 (`ChristianAzinn/snowflake-arctic-embed-xs-gguf`).
+- **Why (Infinix Hot 50 Pro+, CPU, 2 threads):** compared with Q8_0, Q4_0 loads 3.4× faster (2.1 s), generates 1.8× faster (19.9 tok/s), extracts slightly more terms (3.0 per chunk) in less time (13.9 s per chunk), and still shows 0/20 visible leaks.
+- **`deviceProfile.ts`:** `android-cpu` uses 2 threads and `extractTokens` 320.
+
+| Infinix, 2 threads | Q8_0 | **Q4_0** |
+|---|---|---|
+| File size | 1,069 MB | **569 MB** |
+| Load | 7.2 s | **2.1 s** |
+| Generation | 10.8 tok/s | **19.9 tok/s** |
+| Extraction | 3/3 JSON, 2.7 terms/chunk, 19.0 s | **3/3 JSON, 3.0 terms/chunk, 13.9 s** |
+| Tutor | 0/20 visible leaks, 3.7 s/reply | **0/20 visible leaks, 2.3 s/reply** |
+
+Gemma 3 1B was the only candidate run; Google's official QAT Q4_0 build (gated) and Qwen3.5 0.8B were not needed.
 
 ## Reports
 
@@ -41,3 +52,19 @@ Paste DevBench reports here, one block per phone × model. See `docs/RUNTIME_SET
 - JSON now parses every time. 2 terms/chunk is too few: a page is about 3 chunks, so about 6 terms, the minimum for a crossword.
 - Many key terms in the test text are longer than the old 12-letter limit (AUTHENTICATION 14, ACCESS CONTROL 13, AUTHORIZATION 13, INTERNAL CONTROL 15). Raised the limit to 15. DevBench now logs every rejected term and why.
 - Load time of 12.2 s was the first launch after reinstalling (files not yet cached). Run 1 loaded in 3.5 s. Re-check on a normal launch.
+
+### Infinix X6880 (android-cpu): run 3, after the 15-letter limit
+
+- Model: Gemma 3 1B IT, Q8_0 (1069 MB), load 7.2 s, backend CPU 2 threads
+- Extraction: JSON 3/3, 2.7 valid terms/chunk, 19.0 s/chunk
+
+### Infinix X6880 (android-cpu): run 4, Q4_0 ✅ chosen
+
+- Model: Gemma 3 1B IT, **Q4_0** (569 MB, `llama-quantize --pure` from the ggml-org F16), load 2.1 s, backend CPU 2 threads
+
+| Threads | GPU layers | Prompt tok/s | Generation tok/s |
+|---|---|---|---|
+| 2 | 0 | 77.6 | 19.9 |
+
+- Extraction: JSON 3/3, 3.0 valid terms/chunk, 13.9 s/chunk
+- Tutor: raw leaks 0/20, **visible leaks 0/20**, fallbacks 0/20, 2.3 s/reply

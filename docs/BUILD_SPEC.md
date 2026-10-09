@@ -193,6 +193,8 @@ Clue → term recall is active recall. Re-surfacing missed terms is spaced repet
 The Infinix is our budget phone (CPU only), the kind of phone our users actually own, and **the main demo phone**. **Every model and setting decision is made on the Infinix.** If it runs well there, it runs everywhere. (The Tecno Pova 4 is not used.)
 
 ### 5.2 One LLM for all three phones
+
+> **Decision (benchmarked on the Infinix): Gemma 3 1B IT, Q4_0** (569 MB, made with `llama-quantize --pure` from the ggml-org F16 file). 19.9 tok/s, loads in 2.1 s, 3.0 valid terms per chunk in 13.9 s, 0/20 visible tutor leaks. Full numbers: `docs/benchmarks.md`.
 Using one model means the prompts, the few-shot examples and the leak test are tuned once.
 
 | Role | Candidates (benchmark on the Infinix in hour 1) | Format | Notes |

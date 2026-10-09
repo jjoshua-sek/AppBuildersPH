@@ -6,21 +6,23 @@ Step by step: from a fresh clone to models running on our three phones (Infinix 
 
 Put them in a `models/` folder outside the repo (`*.gguf` is gitignored anyway).
 
-| File on the phone | What | Where |
+| File on the phone | Model | Where |
 |---|---|---|
-| `gen.gguf` | **Candidate 1:** Gemma 3 1B IT, QAT Q4_0 | Hugging Face `google/gemma-3-1b-it-qat-q4_0-gguf` (log in and accept Google's license first) |
-| `gen.gguf` | **Candidate 2:** Qwen3.5 0.8B Instruct, Q4_0 | Qwen's official Hugging Face org. If there's no Q4_0 file, convert it yourself (below) |
-| `gen.gguf` | **Candidate 3:** Llama 3.2 1B Instruct, Q4_0 | Same as above |
-| `emb.gguf` | snowflake-arctic-embed-xs, Q8_0 or F16 | `ChristianAzinn/snowflake-arctic-embed-xs-gguf` |
+| `gen.gguf` | **Gemma 3 1B IT, Q4_0 (chosen, 569 MB)** | Made from the F16 file in `ggml-org/gemma-3-1b-it-GGUF` (no license gate), steps below |
+| `emb.gguf` | snowflake-arctic-embed-xs, Q8_0 | `ChristianAzinn/snowflake-arctic-embed-xs-gguf` |
 
-To make a Q4_0 file from a full-precision model (with [llama.cpp](https://github.com/ggml-org/llama.cpp) built on the laptop):
-```bash
-python convert_hf_to_gguf.py path/to/hf-model --outfile model-f16.gguf --outtype f16
-./llama-quantize --pure model-f16.gguf model-q4_0.gguf Q4_0
-```
-`--pure` keeps every tensor in Q4_0, which llama.cpp repacks for fast ARM CPU math.
+Why this model: see `docs/benchmarks.md` (Q4_0 vs. Q8_0 on the Infinix).
 
-Keep each candidate's file around ~1 GB or smaller; the iPhone 11 has 4 GB.
+**Make the Q4_0 file (Windows, about 10 minutes):**
+1. Download the `…f16.gguf` file from https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF (Files and versions) into `C:\models`.
+2. Download the newest `llama-…-bin-win-cpu-x64.zip` from https://github.com/ggml-org/llama.cpp/releases and unzip it to `C:\llama`.
+3. Quantize:
+   ```powershell
+   C:\llama\llama-quantize.exe --pure "C:\models\gemma-3-1b-it-f16.gguf" "C:\models\gemma-3-1b-it-Q4_0.gguf" Q4_0
+   ```
+   `--pure` keeps every tensor in Q4_0, which llama.cpp repacks for fast ARM CPU math. The result is about 537 MiB.
+
+The 569 MB file also fits the iPhone 11 (4 GB RAM).
 
 ## 2. Android: Infinix Hot 50 Pro+
 
@@ -33,9 +35,26 @@ npx react-native run-android --mode release   # demo build: no INTERNET permissi
 ```
 Open the app once (it creates its folder and shows "Missing LLM"), then:
 ```bash
-scripts/push-models.sh ~/models/gemma-3-1b-it-q4_0.gguf ~/models/arctic-embed-xs-q8_0.gguf
+scripts/push-models.sh ~/models/gemma-3-1b-it-Q4_0.gguf ~/models/snowflake-arctic-embed-xs-Q8_0.gguf
 ```
+On Windows PowerShell, without Git Bash:
+```powershell
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+$dir = "/sdcard/Android/data/com.backpacktutor/files/models"
+& $adb shell mkdir -p $dir
+& $adb push "C:\models\gemma-3-1b-it-Q4_0.gguf" "$dir/gen.gguf"
+& $adb push "C:\models\snowflake-arctic-embed-xs-Q8_0.GGUF" "$dir/emb.gguf"
+```
+If the push stops with `write failed` / `no devices`, the USB link dropped: use the phone's original cable directly in a laptop port, turn on **Stay awake** in Developer options, and push again.
 Tap **Retry** on the splash screen.
+
+### Windows troubleshooting (what we hit on the first setup)
+| Error | Fix |
+|---|---|
+| `npm install` fails with `llama.rn: getaddrinfo ENOTFOUND github.com` | Network/DNS blip during llama.rn's native download. Run `$env:RNLLAMA_SKIP_POSTINSTALL = "1"; npm install`, then `node node_modules/llama.rn/install/download-native-artifacts.js` (re-run it until it finishes). |
+| `SDK location not found` | `"sdk.dir=$("$env:LOCALAPPDATA\Android\Sdk" -replace '\\','\\')" \| Out-File -Encoding ascii android\local.properties` (the file is gitignored). |
+| `adb` / `Test-Path` "not recognized" | You're in Command Prompt, not PowerShell (the prompt must start with `PS`), or `platform-tools` isn't on `Path`. Use `$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"` and `& $adb ...`. |
+| Long path / CMake errors | Clone into a short path such as `C:\dev\AppBuildersPH`. |
 
 ## 3. iOS: iPhone 13 Pro Max and iPhone 11 (needs a Mac)
 
