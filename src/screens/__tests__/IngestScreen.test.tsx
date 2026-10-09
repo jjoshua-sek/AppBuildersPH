@@ -39,6 +39,11 @@ const has = (id: string) =>
   root.root.findAll(n => n.props.testID === id).length > 0;
 const disabled = (id: string) => !!byId(id).props.disabled;
 const textOf = (id: string) => [byId(id).props.children].flat().join('');
+const labelOf = (id: string) =>
+  byId(id)
+    .findAll(n => (n.type as unknown) === 'Text')
+    .map(n => [n.props.children].flat().join(''))
+    .join('');
 
 async function render(
   props: Partial<React.ComponentProps<typeof IngestScreen>> = {},
@@ -46,7 +51,13 @@ async function render(
   const onPlay = jest.fn();
   await act(async () => {
     root = ReactTestRenderer.create(
-      <IngestScreen bridge={bridge()} profile={P} onPlay={onPlay} {...props} />,
+      <IngestScreen
+        bridge={bridge()}
+        profile={P}
+        onPlay={onPlay}
+        onBack={() => {}}
+        {...props}
+      />,
     );
   });
   return onPlay;
@@ -170,23 +181,66 @@ it('shows an ingest error', async () => {
   expect(disabled('play')).toBe(true);
 });
 
+it('shows Stop while reading, and stops after the current chunk', async () => {
+  const fast = bridge();
+  const slow: AiBridge = {
+    ...fast,
+    // a real model takes seconds per chunk; here, one timer tick per embedding
+    embed: t => new Promise(r => setTimeout(() => r(fast.embed(t)), 1)),
+  };
+  await render({ bridge: slow });
+  await act(async () => byId('sample').props.onPress());
+  await act(async () => {
+    byId('generate').props.onPress();
+  });
+  expect(has('generate')).toBe(false);
+  await act(async () => byId('stop').props.onPress());
+  expect(labelOf('stop')).toBe('Stopping after this chunk…');
+  expect(disabled('stop')).toBe(true);
+  await until(() => deckStore.getState().status === 'done');
+  expect(has('stop')).toBe(false);
+  expect(textOf('progress-line')).toMatch(/^Stopped after 1\/\d chunks/);
+});
+
+it('goes back', async () => {
+  const onBack = jest.fn();
+  await render({ onBack });
+  await act(async () => byId('back').props.onPress());
+  expect(onBack).toHaveBeenCalled();
+});
+
 describe('progressLine', () => {
-  const p = { chunk: 1, total: 3, found: 4, selected: 4 };
+  const p = {
+    chunk: 1,
+    total: 3,
+    found: 4,
+    selected: 4,
+    failedChunks: 0,
+    cancelled: false,
+  };
   it('names the chunk being read', () => {
     expect(progressLine('reading', null)).toBe('Reading chunk 1…');
     expect(progressLine('reading', p)).toBe(
       'Reading chunk 2/3 · 4 terms found',
     );
-    expect(progressLine('reading', { ...p, chunk: 3 })).toBe(
-      'Reading chunk 3/3 · 4 terms found',
+    expect(progressLine('reading', { ...p, chunk: 3, found: 1 })).toBe(
+      'Reading chunk 3/3 · 1 term found',
     );
   });
   it('summarizes the result', () => {
     expect(
       progressLine('done', { ...p, chunk: 3, found: 9, selected: 8 }),
     ).toBe('Done · 9 terms found, 8 in your puzzle');
-    expect(progressLine('done', { ...p, found: 1, selected: 1 })).toMatch(
-      /^Only 1 term found/,
+    expect(progressLine('done', { ...p, found: 1, selected: 1 })).toBe(
+      'Done · only 1 term found. Add more notes or snap another page.',
     );
+  });
+  it('says when it was stopped or skipped chunks', () => {
+    expect(progressLine('done', { ...p, cancelled: true })).toBe(
+      'Stopped after 1/3 chunks · 4 terms found, 4 in your puzzle',
+    );
+    expect(
+      progressLine('done', { ...p, chunk: 3, failedChunks: 1, selected: 6 }),
+    ).toBe('Done · 4 terms found, 6 in your puzzle · 1 chunk skipped');
   });
 });

@@ -20,3 +20,8 @@ jest.mock('@op-engineering/op-sqlite', () => ({
 jest.mock('react-native-safe-area-context', () =>
   require('react-native-safe-area-context/jest/mock').default,
 );
+// Ships untranspiled TypeScript and needs the native camera; tests stub it.
+jest.mock('react-native-image-picker', () => ({
+  launchCamera: jest.fn(),
+  launchImageLibrary: jest.fn(),
+}));

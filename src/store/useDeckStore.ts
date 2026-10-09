@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react';
 import type { AiBridge } from '../types';
+import { connect, type SqlDb } from '../services/db/client';
 import { getDocuments, type DeckSummary } from '../services/db/queries';
 import type { Profile } from '../services/device/deviceProfile';
 import {
   fillWhyCards,
   ingest,
+  type CancelToken,
   type Progress,
   type WhyFiller,
 } from '../services/ingest/pipeline';
@@ -27,6 +29,7 @@ export type DeckState = {
   progress: Progress | null;
   error: string | null;
   lastIngestMs: number; // shown on the Proof panel
+  dbError: string | null; // the database failed to open
 };
 
 const initial: DeckState = {
@@ -36,12 +39,15 @@ const initial: DeckState = {
   progress: null,
   error: null,
   lastIngestMs: 0,
+  dbError: null,
 };
 
 let state = initial;
 const listeners = new Set<() => void>();
 let running: Promise<void> | null = null;
 let why: WhyFiller | null = null;
+let cancel: CancelToken | null = null;
+let dbReady: Promise<void> | null = null;
 
 function set(patch: Partial<DeckState>) {
   state = { ...state, ...patch };
@@ -60,6 +66,8 @@ export const deckStore = {
   reset() {
     running = null;
     why = null;
+    cancel = null;
+    dbReady = null;
     set(initial);
   },
 };
@@ -69,12 +77,34 @@ export function useDeckStore<T>(selector: (s: DeckState) => T): T {
   return useSyncExternalStore(deckStore.subscribe, () => selector(state));
 }
 
+/**
+ * Call once at app start with op-sqlite's `open({ name: 'backpack.sqlite' })`:
+ * creates the tables if needed and loads the deck list. Ingest waits for it.
+ * Never rejects; a failure lands in `dbError`.
+ */
+export function openDecks(db: SqlDb): Promise<void> {
+  dbReady ??= (async () => {
+    try {
+      await connect(db);
+      await loadDecks();
+    } catch (e) {
+      set({ dbError: e instanceof Error ? e.message : String(e) });
+    }
+  })();
+  return dbReady;
+}
+
 export async function loadDecks() {
   set({ decks: await getDocuments() });
 }
 
 export function setCurrentDeck(docId: string) {
   set({ currentDocId: docId });
+}
+
+/** Stops the running ingest after the chunk in progress; what was read is kept. */
+export function cancelIngest() {
+  if (cancel) cancel.cancelled = true;
 }
 
 /** Back to an empty Ingest screen. Ignored while an ingest is running. */
@@ -95,12 +125,27 @@ export function startIngest(
 ): Promise<void> {
   if (running) return running;
   set({ status: 'reading', progress: null, error: null });
+  const token: CancelToken = (cancel = { cancelled: false });
   running = (async () => {
     try {
-      const res = await ingest(bridge, profile, doc, progress =>
-        set({ progress, currentDocId: progress.docId }),
+      await dbReady;
+      const res = await ingest(
+        bridge,
+        profile,
+        doc,
+        progress => set({ progress, currentDocId: progress.docId }),
+        token,
       );
-      set({ status: 'done', currentDocId: res.docId, lastIngestMs: res.ms });
+      // Keep the last progress (it has the counts); mark it cancelled if stopped early.
+      set({
+        status: 'done',
+        currentDocId: res.docId,
+        lastIngestMs: res.ms,
+        progress: state.progress && {
+          ...state.progress,
+          cancelled: res.cancelled,
+        },
+      });
       why = fillWhyCards(bridge, profile, res.docId);
       why.done.catch(() => {}); // background; failures fall back to the clue
     } catch (e) {
@@ -110,6 +155,7 @@ export function startIngest(
       });
     } finally {
       running = null;
+      cancel = null;
       await loadDecks().catch(() => {});
     }
   })();

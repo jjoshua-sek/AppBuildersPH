@@ -26,9 +26,14 @@ export type Progress = {
   found: number; // distinct valid terms so far ("7 terms found")
   selected: number; // terms chosen for the crossword so far
   ready: boolean; // the DB already holds >= READY_TERMS selected terms
+  failedChunks: number; // the model failed on these; the other chunks still count
+  cancelled: boolean; // stopped early by the student
 };
 
 export type IngestResult = Omit<Progress, 'chunk'> & { ms: number };
+
+/** Set `cancelled` to stop after the chunk in progress; what was read so far is kept. */
+export type CancelToken = { cancelled: boolean };
 
 type Candidate = ExtractedTerm & {
   id: string;
@@ -42,14 +47,17 @@ type Candidate = ExtractedTerm & {
  * flags are updated, so when `ready` is reported the game can already load
  * getSelectedTerms(docId) while the remaining chunks are read.
  *
- * Throws before writing anything if the text has no words. Model errors propagate;
- * a chunk whose output fails validation just yields no terms.
+ * Throws before writing anything if the text has no words. A model error on one
+ * chunk is counted in `failedChunks` and the rest still run (the chunk's text is
+ * kept for the tutor); if every chunk fails, the first error is thrown. A chunk
+ * whose output fails validation just yields no terms.
  */
 export async function ingest(
   bridge: AiBridge,
   p: Profile,
   doc: { title: string; source: string; text: string },
   onProgress: (x: Progress) => void = () => {},
+  cancel: CancelToken = { cancelled: false },
 ): Promise<IngestResult> {
   const t0 = Date.now();
   const parts = chunk(doc.text, p.chunkWords, CHUNK_OVERLAP);
@@ -72,23 +80,38 @@ export async function ingest(
     found: 0,
     selected: 0,
     ready: false,
+    failedChunks: 0,
+    cancelled: false,
+  };
+  let firstError: unknown = null;
+  const fail = (e: unknown) => {
+    firstError ??= e;
+    progress.failedChunks++;
   };
 
   for (let i = 0; i < parts.length; i++) {
+    if (cancel.cancelled) {
+      progress.cancelled = true;
+      break;
+    }
     const chunkId = `${docId}:${i}`;
     const text = parts[i];
-    await insertChunk({
-      id: chunkId,
-      doc_id: docId,
-      idx: i,
-      text,
-      embedding: await bridge.embed(text),
+    // Always save the chunk: the tutor needs its text even if the model failed on it.
+    const embedding = await bridge.embed(text).catch(e => {
+      fail(e);
+      return null;
     });
+    await insertChunk({ id: chunkId, doc_id: docId, idx: i, text, embedding });
 
-    const found = await extractTerms(bridge, chunkId, text, {
-      maxTerms: p.termsPerChunk,
-      n_predict: p.extractTokens,
-    });
+    const found = embedding
+      ? await extractTerms(bridge, chunkId, text, {
+          maxTerms: p.termsPerChunk,
+          n_predict: p.extractTokens,
+        }).catch(e => {
+          fail(e);
+          return [];
+        })
+      : [];
     for (const t of found) {
       if (seen.has(t.answer)) continue;
       seen.add(t.answer);
@@ -105,7 +128,10 @@ export async function ingest(
         ...t,
         id,
         chunkIdx: i,
-        vec: await bridge.embed(`${t.term}: ${t.clue}`),
+        // Only for near-duplicate checks; without it the term is still deduped by answer.
+        vec: await bridge
+          .embed(`${t.term}: ${t.clue}`)
+          .catch(() => new Float32Array(0)),
       });
     }
 
@@ -115,18 +141,29 @@ export async function ingest(
       picked.map(c => c.id),
     );
     progress = {
-      docId,
+      ...progress,
       chunk: i + 1,
-      total: parts.length,
       found: cands.length,
       selected: picked.length,
       ready: picked.length >= READY_TERMS,
     };
-    onProgress(progress);
+    onProgress({ ...progress });
   }
 
-  const { total, found, selected, ready } = progress;
-  return { docId, total, found, selected, ready, ms: Date.now() - t0 };
+  if (progress.failedChunks && progress.failedChunks === progress.chunk) {
+    throw firstError; // nothing worked: the model is likely not loaded
+  }
+  const { total, found, selected, ready, failedChunks, cancelled } = progress;
+  return {
+    docId,
+    total,
+    found,
+    selected,
+    ready,
+    failedChunks,
+    cancelled,
+    ms: Date.now() - t0,
+  };
 }
 
 export type WhyFiller = {

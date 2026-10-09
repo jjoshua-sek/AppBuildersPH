@@ -6,9 +6,9 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native';
+import { colors, ui } from '../app/theme';
 import { searchNotes, type NoteHit } from '../services/rag/retrieve';
 import { useDeckStore } from '../store/useDeckStore';
 import type { AiBridge } from '../types';
@@ -17,14 +17,15 @@ export type AskNotesScreenProps = {
   bridge: AiBridge;
   /** Search one deck; omit to search every deck. */
   docId?: string;
+  onBack(): void;
 };
 
 /**
  * "Ask my notes" (P1): type a question, get the passages from your own notes
  * that answer it, found by the on-device embedding model.
  */
-export function AskNotesScreen({ bridge, docId }: AskNotesScreenProps) {
-  const c = useColors();
+export function AskNotesScreen({ bridge, docId, onBack }: AskNotesScreenProps) {
+  const c = colors;
   const decks = useDeckStore(s => s.decks);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<NoteHit[] | null>(null);
@@ -50,11 +51,11 @@ export function AskNotesScreen({ bridge, docId }: AskNotesScreenProps) {
 
   return (
     <ScrollView
-      style={{ backgroundColor: c.bg }}
-      contentContainerStyle={styles.page}
+      style={ui.screen}
+      contentContainerStyle={[ui.content, ui.top]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.h1, { color: c.text }]}>Ask my notes</Text>
+      <Text style={ui.title}>Ask my notes</Text>
       <Text style={[styles.sub, { color: c.muted }]}>
         Finds the part of your notes that answers your question, offline.
       </Text>
@@ -85,14 +86,14 @@ export function AskNotesScreen({ bridge, docId }: AskNotesScreenProps) {
         ]}
       >
         {busy ? (
-          <ActivityIndicator color={c.onAccent} />
+          <ActivityIndicator color={colors.bg} />
         ) : (
-          <Text style={[styles.btnText, { color: c.onAccent }]}>Search</Text>
+          <Text style={ui.buttonText}>Search</Text>
         )}
       </Pressable>
 
       {error && (
-        <Text testID="error" style={[styles.note, { color: c.error }]}>
+        <Text testID="error" style={[styles.note, { color: c.danger }]}>
           {error}
         </Text>
       )}
@@ -128,39 +129,20 @@ export function AskNotesScreen({ bridge, docId }: AskNotesScreenProps) {
           </Pressable>
         );
       })}
+      <Pressable
+        testID="back"
+        onPress={onBack}
+        accessibilityRole="button"
+        style={[styles.btn, styles.ghost]}
+      >
+        <Text style={[styles.btnText, { color: c.accent }]}>Back</Text>
+      </Pressable>
       <View style={styles.spacer} />
     </ScrollView>
   );
 }
 
-function useColors() {
-  const dark = useColorScheme() === 'dark';
-  return dark
-    ? {
-        bg: '#111418',
-        card: '#1b2026',
-        text: '#eef1f4',
-        muted: '#9aa4ae',
-        border: '#2c333b',
-        accent: '#5b9cf5',
-        onAccent: '#ffffff',
-        error: '#ff7a6b',
-      }
-    : {
-        bg: '#f6f7f9',
-        card: '#ffffff',
-        text: '#15191e',
-        muted: '#5f6b76',
-        border: '#d9dee3',
-        accent: '#2563c9',
-        onAccent: '#ffffff',
-        error: '#c4382a',
-      };
-}
-
 const styles = StyleSheet.create({
-  page: { padding: 16, gap: 12 },
-  h1: { fontSize: 26, fontWeight: '700' },
   sub: { fontSize: 15 },
   input: {
     borderWidth: 1,
@@ -172,6 +154,7 @@ const styles = StyleSheet.create({
   btn: { borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnText: { fontSize: 16, fontWeight: '600' },
   dim: { opacity: 0.4 },
+  ghost: { borderWidth: 1.5, borderColor: colors.accent },
   note: { fontSize: 14 },
   card: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 6 },
   meta: { fontSize: 13 },

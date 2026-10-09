@@ -216,14 +216,13 @@ export async function insertDocument(d: {
 
 /** Stores a chunk, its embedding, and its FTS5 row (chunks are never edited, so no triggers). */
 export async function insertChunk(
-  c: ChunkRow & { embedding: Float32Array },
+  c: ChunkRow & { embedding: Float32Array | null }, // null: the embedder failed
 ): Promise<void> {
   const db = getDb();
   const e = c.embedding;
-  const blob = e.buffer.slice(
-    e.byteOffset,
-    e.byteOffset + e.byteLength,
-  ) as ArrayBuffer;
+  const blob = e
+    ? (e.buffer.slice(e.byteOffset, e.byteOffset + e.byteLength) as ArrayBuffer)
+    : null;
   await db.execute(
     'INSERT INTO chunks (id, doc_id, idx, text, embedding) VALUES (?,?,?,?,?)',
     [c.id, c.doc_id, c.idx, c.text, blob],

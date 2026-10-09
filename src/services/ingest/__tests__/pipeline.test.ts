@@ -184,6 +184,93 @@ describe('ingest', () => {
       ingest(bridge, P, { title: 'x', source: 'paste', text: TEXT }),
     ).rejects.toThrow('Embedder');
   });
+
+  it('keeps going when the model fails on one chunk', async () => {
+    const base = scriptedBridge();
+    let extractCalls = 0;
+    const bridge = scriptedBridge({
+      complete: async o => {
+        if ((o.jsonSchema as any)?.properties?.terms && extractCalls++ === 0) {
+          throw new Error('context full');
+        }
+        return base.complete(o);
+      },
+    });
+    const res = await ingest(bridge, P, {
+      title: 'x',
+      source: 'paste',
+      text: TEXT,
+    });
+    expect(res.failedChunks).toBe(1);
+    expect(res.found).toBeGreaterThan(0);
+    // the failed chunk's text is still saved, for the tutor
+    expect(await getChunk(`${res.docId}:0`)).toMatchObject({ idx: 0 });
+  });
+
+  it('keeps a chunk whose embedding failed, without extracting from it', async () => {
+    const mock = createMockBridge();
+    let n = 0;
+    const bridge = scriptedBridge({
+      embed: async t => {
+        if (n++ === 0) throw new Error('embedder busy');
+        return mock.embed(t);
+      },
+    });
+    const res = await ingest(bridge, P, {
+      title: 'x',
+      source: 'paste',
+      text: TEXT,
+    });
+    expect(res.failedChunks).toBe(1);
+    expect(await getChunk(`${res.docId}:0`)).not.toBeNull();
+    const terms = await getTerms(res.docId);
+    expect(terms.some(t => t.chunk_id === `${res.docId}:0`)).toBe(false);
+  });
+
+  it('still dedupes by answer when a term embedding fails', async () => {
+    const mock = createMockBridge();
+    const bridge = scriptedBridge({
+      embed: async t => {
+        // fail only the "term: clue" embeddings, not the chunks
+        if (SAMPLE_TERMS.some(x => t === `${x.term}: ${x.clue}`)) {
+          throw new Error('embedder busy');
+        }
+        return mock.embed(t);
+      },
+    });
+    const res = await ingest(bridge, P, {
+      title: 'x',
+      source: 'paste',
+      text: TEXT,
+    });
+    expect(res.failedChunks).toBe(0);
+    const terms = await getTerms(res.docId);
+    expect(new Set(terms.map(t => t.answer)).size).toBe(terms.length);
+    expect(res.selected).toBeGreaterThanOrEqual(READY_TERMS);
+  });
+
+  it('stops after the chunk in progress when cancelled, keeping what it read', async () => {
+    const cancel = { cancelled: false };
+    const seen: Progress[] = [];
+    const res = await ingest(
+      scriptedBridge(),
+      P,
+      { title: 'x', source: 'paste', text: TEXT },
+      x => {
+        seen.push(x);
+        cancel.cancelled = true; // the student taps Stop during chunk 1
+      },
+      cancel,
+    );
+    expect(seen).toHaveLength(1);
+    expect(res).toMatchObject({ cancelled: true, total: 3 });
+    expect(
+      await count('SELECT count(*) n FROM chunks WHERE doc_id = ?', [
+        res.docId,
+      ]),
+    ).toBe(1);
+    expect((await getTerms(res.docId)).length).toBe(res.found);
+  });
 });
 
 describe('fillWhyCards', () => {

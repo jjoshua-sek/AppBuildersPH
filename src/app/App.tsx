@@ -8,10 +8,30 @@ import { SplashScreen } from '../screens/SplashScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProofPanelScreen } from '../screens/ProofPanelScreen';
 import { DevBenchScreen } from '../screens/DevBenchScreen';
+import { IngestScreen } from '../screens/IngestScreen';
+import { AskNotesScreen } from '../screens/AskNotesScreen';
+import { open } from '@op-engineering/op-sqlite';
+import { bridge, profile, stats } from '../services/ai/llamaBridge';
+import { ocrAvailable, pickAndRead, snapAndRead } from '../services/ingest/ocr';
+import {
+  deckStore,
+  openDecks,
+  setCurrentDeck,
+  useDeckStore,
+} from '../store/useDeckStore';
 
 export default function App() {
   const ready = useAiStore(s => s.status === 'ready');
   const [route, setRoute] = useState<Route>('home');
+  const currentDocId = useDeckStore(s => s.currentDocId);
+
+  // Lane B: open the decks database once, and report ingest time to the Proof panel.
+  useEffect(() => {
+    openDecks(open({ name: 'backpack.sqlite' }));
+    return deckStore.subscribe(() => {
+      stats.lastIngestMs = deckStore.getState().lastIngestMs;
+    });
+  }, []);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -33,6 +53,24 @@ export default function App() {
           <ProofPanelScreen onBack={home} />
         ) : route === 'devbench' ? (
           <DevBenchScreen onBack={home} />
+        ) : route === 'ingest' ? (
+          <IngestScreen
+            bridge={bridge}
+            profile={profile}
+            onBack={home}
+            onPlay={docId => {
+              setCurrentDeck(docId);
+              home(); // Lane C: go to the crossword route here once it exists
+            }}
+            snapPage={ocrAvailable() ? snapAndRead : undefined}
+            pickPage={ocrAvailable() ? pickAndRead : undefined}
+          />
+        ) : route === 'ask' ? (
+          <AskNotesScreen
+            bridge={bridge}
+            docId={currentDocId ?? undefined}
+            onBack={home}
+          />
         ) : (
           <HomeScreen go={setRoute} />
         )}

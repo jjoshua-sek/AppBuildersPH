@@ -6,13 +6,15 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native';
+import { colors, ui } from '../app/theme';
 import { SAMPLE_TEXT, SAMPLE_TITLE } from '../assets/sample';
 import type { Profile } from '../services/device/deviceProfile';
+import type { Progress } from '../services/ingest/pipeline';
 import type { AiBridge } from '../types';
 import {
+  cancelIngest,
   canPlay,
   resetIngest,
   startIngest,
@@ -26,6 +28,7 @@ export type IngestScreenProps = {
   bridge: AiBridge;
   profile: Profile;
   onPlay(docId: string): void;
+  onBack(): void;
   /** Camera + OCR: pass `snapAndRead` from `ingest/ocr.ts`. The button is hidden without it. */
   snapPage?: () => Promise<string>;
   /** Existing photo + OCR: pass `pickAndRead`. Safer on stage: a pre-tested page. */
@@ -37,36 +40,48 @@ const isCancel = (e: unknown) =>
   e instanceof Error && e.name === 'OcrCancelled';
 
 const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export function progressLine(
   status: string,
-  p: { chunk: number; total: number; found: number; selected: number } | null,
+  p: Pick<
+    Progress,
+    'chunk' | 'total' | 'found' | 'selected' | 'failedChunks' | 'cancelled'
+  > | null,
 ): string {
   if (status === 'reading') {
     return p
-      ? `Reading chunk ${Math.min(p.chunk + 1, p.total)}/${p.total} · ${
-          p.found
-        } terms found`
+      ? `Reading chunk ${Math.min(p.chunk + 1, p.total)}/${p.total} · ${plural(
+          p.found,
+          'term',
+        )} found`
       : 'Reading chunk 1…';
   }
-  if (status === 'done' && p) {
-    return p.selected >= 2
-      ? `Done · ${p.found} terms found, ${p.selected} in your puzzle`
-      : `Only ${p.found} term${
-          p.found === 1 ? '' : 's'
-        } found. Add more notes or snap another page.`;
-  }
-  return '';
+  if (status !== 'done' || !p) return '';
+  const head = p.cancelled
+    ? `Stopped after ${p.chunk}/${p.total} chunks`
+    : 'Done';
+  const skipped = p.failedChunks
+    ? ` · ${plural(p.failedChunks, 'chunk')} skipped`
+    : '';
+  return p.selected >= 2
+    ? `${head} · ${plural(p.found, 'term')} found, ${
+        p.selected
+      } in your puzzle${skipped}`
+    : `${head} · only ${plural(
+        p.found,
+        'term',
+      )} found${skipped}. Add more notes or snap another page.`;
 }
 
 export function IngestScreen({
   bridge,
   profile,
   onPlay,
+  onBack,
   snapPage,
   pickPage,
 }: IngestScreenProps) {
-  const c = useColors();
   const status = useDeckStore(s => s.status);
   const progress = useDeckStore(s => s.progress);
   const error = useDeckStore(s => s.error);
@@ -78,6 +93,7 @@ export function IngestScreen({
   const [source, setSource] = useState<'paste' | 'camera' | 'sample'>('paste');
   const [snapping, setSnapping] = useState(false);
   const [snapError, setSnapError] = useState<string | null>(null);
+  const [stopping, setStopping] = useState(false);
 
   const reading = status === 'reading';
   const words = wordCount(text);
@@ -112,23 +128,30 @@ export function IngestScreen({
     resetIngest();
   };
 
-  const generate = () =>
-    startIngest(bridge, profile, {
+  const generate = async () => {
+    setStopping(false);
+    await startIngest(bridge, profile, {
       title: title.trim() || `Notes ${new Date().toLocaleDateString('en-CA')}`,
       source,
       text,
     });
+  };
+
+  const stop = () => {
+    setStopping(true);
+    cancelIngest();
+  };
 
   const fraction = progress ? progress.chunk / progress.total : 0;
 
   return (
     <ScrollView
-      style={{ backgroundColor: c.bg }}
-      contentContainerStyle={styles.page}
+      style={ui.screen}
+      contentContainerStyle={[ui.content, ui.top]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.h1, { color: c.text }]}>Add your notes</Text>
-      <Text style={[styles.sub, { color: c.muted }]}>
+      <Text style={ui.title}>Add your notes</Text>
+      <Text style={ui.muted}>
         Snap a handout or paste text. Everything stays on this phone.
       </Text>
 
@@ -139,7 +162,6 @@ export function IngestScreen({
             label={snapping ? 'Reading photo…' : '📷 Snap a page'}
             onPress={() => snap(snapPage)}
             disabled={reading || snapping}
-            c={c}
           />
         )}
         {pickPage && (
@@ -148,8 +170,7 @@ export function IngestScreen({
             label="🖼 From photos"
             onPress={() => snap(pickPage)}
             disabled={reading || snapping}
-            c={c}
-            kind="ghost"
+            ghost
           />
         )}
         <Btn
@@ -157,82 +178,68 @@ export function IngestScreen({
           label="Use sample handout"
           onPress={useSample}
           disabled={reading}
-          c={c}
-          kind="ghost"
+          ghost
         />
       </View>
-      {snapError && (
-        <Text style={[styles.note, { color: c.error }]}>{snapError}</Text>
-      )}
+      {snapError && <Text style={[ui.text, ui.danger]}>{snapError}</Text>}
 
       <TextInput
         testID="title"
         value={title}
         onChangeText={setTitle}
         placeholder="Title (optional), e.g. IT Audit Ch. 1"
-        placeholderTextColor={c.muted}
+        placeholderTextColor={colors.muted}
         editable={!reading}
-        style={[
-          styles.input,
-          { color: c.text, borderColor: c.border, backgroundColor: c.card },
-        ]}
+        style={styles.input}
       />
       <TextInput
         testID="notes"
         value={text}
         onChangeText={edit}
         placeholder="Paste your notes here, or snap a page; the text you photograph shows up here to check and fix."
-        placeholderTextColor={c.muted}
+        placeholderTextColor={colors.muted}
         editable={!reading}
         multiline
         textAlignVertical="top"
-        style={[
-          styles.input,
-          styles.notes,
-          { color: c.text, borderColor: c.border, backgroundColor: c.card },
-        ]}
+        style={[styles.input, styles.notes]}
       />
-      <Text
-        style={[
-          styles.note,
-          { color: words && words < MIN_WORDS ? c.error : c.muted },
-        ]}
-      >
+      <Text style={[ui.muted, words > 0 && words < MIN_WORDS && ui.danger]}>
         {words} words
         {words < MIN_WORDS ? ` · at least ${MIN_WORDS} needed` : ''}
       </Text>
 
-      <Btn
-        testID="generate"
-        label={reading ? 'Reading your notes…' : 'Generate puzzle'}
-        onPress={generate}
-        disabled={!canGenerate}
-        c={c}
-      />
+      {reading ? (
+        <Btn
+          testID="stop"
+          label={stopping ? 'Stopping after this chunk…' : '■ Stop'}
+          onPress={stop}
+          disabled={stopping}
+          ghost
+        />
+      ) : (
+        <Btn
+          testID="generate"
+          label="Generate puzzle"
+          onPress={generate}
+          disabled={!canGenerate}
+        />
+      )}
 
       {(reading || progress) && (
-        <View style={styles.progress} testID="progress">
+        <View style={ui.card} testID="progress">
           <View style={styles.row}>
-            {reading && <ActivityIndicator color={c.accent} />}
-            <Text
-              style={[styles.progressText, { color: c.text }]}
-              testID="progress-line"
-            >
+            {reading && <ActivityIndicator color={colors.accent} />}
+            <Text style={[ui.text, styles.shrink]} testID="progress-line">
               {progressLine(status, progress)}
             </Text>
           </View>
-          <View style={[styles.track, { backgroundColor: c.border }]}>
-            <View
-              style={[
-                styles.fill,
-                { backgroundColor: c.accent, width: `${fraction * 100}%` },
-              ]}
-            />
+          <View style={ui.track}>
+            <View style={[ui.fill, { width: `${fraction * 100}%` }]} />
           </View>
         </View>
       )}
       {status === 'error' && (
-        <Text style={[styles.note, { color: c.error }]} testID="error">
+        <Text style={[ui.text, ui.danger]} testID="error">
           Something went wrong: {error}
         </Text>
       )}
@@ -242,107 +249,63 @@ export function IngestScreen({
         label={reading && playable ? '▶ Play now (still reading)' : '▶ Play'}
         onPress={() => docId && onPlay(docId)}
         disabled={!playable || !docId}
-        c={c}
-        kind="play"
       />
+      <Btn testID="back" label="Back" onPress={onBack} ghost />
     </ScrollView>
   );
 }
 
-type Colors = ReturnType<typeof useColors>;
-
+/** Like components/Button, plus a testID and an outlined style. */
 function Btn(props: {
   testID: string;
   label: string;
   onPress(): void;
   disabled?: boolean;
-  c: Colors;
-  kind?: 'primary' | 'ghost' | 'play';
+  ghost?: boolean;
 }) {
-  const { c, kind = 'primary', disabled } = props;
-  const bg =
-    kind === 'ghost' ? 'transparent' : kind === 'play' ? c.play : c.accent;
   return (
     <Pressable
       testID={props.testID}
       onPress={props.onPress}
-      disabled={disabled}
+      disabled={props.disabled}
       accessibilityRole="button"
-      accessibilityState={{ disabled: !!disabled }}
-      style={({ pressed }) => [
-        styles.btn,
-        { backgroundColor: bg, borderColor: kind === 'ghost' ? c.accent : bg },
-        (disabled || pressed) && { opacity: disabled ? 0.4 : 0.8 },
+      accessibilityState={{ disabled: !!props.disabled }}
+      style={[
+        ui.button,
+        props.ghost && styles.ghost,
+        props.disabled && ui.buttonDisabled,
       ]}
     >
-      <Text
-        style={[
-          styles.btnText,
-          { color: kind === 'ghost' ? c.accent : c.onAccent },
-        ]}
-      >
+      <Text style={[ui.buttonText, props.ghost && styles.ghostText]}>
         {props.label}
       </Text>
     </Pressable>
   );
 }
 
-function useColors() {
-  const dark = useColorScheme() === 'dark';
-  return dark
-    ? {
-        bg: '#111418',
-        card: '#1b2026',
-        text: '#eef1f4',
-        muted: '#9aa4ae',
-        border: '#2c333b',
-        accent: '#5b9cf5',
-        play: '#2fa86a',
-        onAccent: '#ffffff',
-        error: '#ff7a6b',
-      }
-    : {
-        bg: '#f6f7f9',
-        card: '#ffffff',
-        text: '#15191e',
-        muted: '#5f6b76',
-        border: '#d9dee3',
-        accent: '#2563c9',
-        play: '#1f8a54',
-        onAccent: '#ffffff',
-        error: '#c4382a',
-      };
-}
-
 const styles = StyleSheet.create({
-  page: { padding: 16, gap: 12 },
-  h1: { fontSize: 26, fontWeight: '700' },
-  sub: { fontSize: 15 },
   row: {
     flexDirection: 'row',
     gap: 10,
     alignItems: 'center',
     flexWrap: 'wrap',
   },
+  shrink: { flexShrink: 1 },
   input: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
+    color: colors.text,
+    fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 16,
   },
   notes: { minHeight: 220, maxHeight: 360 },
-  note: { fontSize: 13 },
-  btn: {
+  ghost: {
+    backgroundColor: 'transparent',
+    borderColor: colors.accent,
     borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
   },
-  btnText: { fontSize: 16, fontWeight: '600' },
-  progress: { gap: 8 },
-  progressText: { fontSize: 15, flexShrink: 1 },
-  track: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  fill: { height: 6 },
+  ghostText: { color: colors.accent },
 });

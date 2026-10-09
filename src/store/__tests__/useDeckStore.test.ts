@@ -6,9 +6,11 @@ import { memoryDb } from '../../services/db/testing/memoryDb';
 import { PROFILES } from '../../services/device/deviceProfile';
 import type { AiBridge } from '../../types';
 import {
+  cancelIngest,
   canPlay,
   deckStore,
   loadDecks,
+  openDecks,
   resetIngest,
   setCurrentDeck,
   startIngest,
@@ -114,6 +116,8 @@ it('canPlay: ready mid-ingest, or a finished deck with at least 2 terms', () => 
     found: 6,
     selected: 6,
     ready: true,
+    failedChunks: 0,
+    cancelled: false,
   };
   const base = deckStore.getState();
   expect(canPlay({ ...base, status: 'reading', progress: p })).toBe(true);
@@ -138,4 +142,57 @@ it('canPlay: ready mid-ingest, or a finished deck with at least 2 terms', () => 
       progress: { ...p, selected: 1, ready: false },
     }),
   ).toBe(false);
+});
+
+describe('openDecks', () => {
+  it('creates the tables and loads existing decks', async () => {
+    const db = memoryDb();
+    await openDecks(db);
+    await startIngest(bridge(), P, doc);
+    deckStore.reset();
+    await openDecks(db); // app restart, same database file
+    expect(deckStore.getState().decks.map(d => d.title)).toEqual(['IT Audit']);
+    expect(deckStore.getState().dbError).toBeNull();
+  });
+
+  it('reports a database that will not open, without throwing', async () => {
+    await openDecks({
+      execute: async () => {
+        throw new Error('disk full');
+      },
+    });
+    expect(deckStore.getState().dbError).toBe('disk full');
+  });
+
+  it('makes ingest wait until the database is open', async () => {
+    const db = memoryDb();
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    const slow = {
+      execute: async (sql: string, params?: any[]) => {
+        await gate;
+        return db.execute(sql, params);
+      },
+    };
+    const opening = openDecks(slow);
+    const ingesting = startIngest(bridge(), P, doc);
+    await new Promise<void>(r => setTimeout(r, 0));
+    expect(deckStore.getState().status).toBe('reading');
+    release();
+    await opening;
+    await ingesting;
+    expect(deckStore.getState().status).toBe('done');
+  });
+});
+
+it('cancelIngest stops after the chunk in progress and keeps a playable result', async () => {
+  const unsub = deckStore.subscribe(() => {
+    if (deckStore.getState().progress?.chunk === 1) cancelIngest();
+  });
+  await startIngest(bridge(), P, doc);
+  unsub();
+  const s = deckStore.getState();
+  expect(s.status).toBe('done');
+  expect(s.progress).toMatchObject({ chunk: 1, cancelled: true });
+  expect(s.decks[0].terms).toBe(s.progress!.selected);
 });

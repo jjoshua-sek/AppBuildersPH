@@ -23,7 +23,7 @@ const texts = () =>
 async function render(bridge: AiBridge, docId?: string) {
   await act(async () => {
     root = ReactTestRenderer.create(
-      <AskNotesScreen bridge={bridge} docId={docId} />,
+      <AskNotesScreen bridge={bridge} docId={docId} onBack={() => {}} />,
     );
   });
 }
