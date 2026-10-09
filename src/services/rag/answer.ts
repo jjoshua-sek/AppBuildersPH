@@ -6,8 +6,10 @@ import { keywords, type NoteHit } from './retrieve';
  * passages searchNotes() found, and says which passage it used.
  *
  * Small models drift into outside knowledge, so the answer is checked against
- * the passages (most of its content words must appear in them). An answer that
- * fails gets one retry; after that the student sees the best passage instead.
+ * the passages (most of its content words must appear in them). It must also be
+ * about the question: when the question's distinctive words (e.g. "COBIT") are
+ * in the passages, the answer has to use one of them. An answer that fails gets
+ * one retry; after that the student sees the passage that best fits instead.
  */
 
 const NOT_IN_NOTES = 'NOT_IN_NOTES';
@@ -38,16 +40,39 @@ const stripCitations = (s: string) =>
     .replace(/\s+([.,;!?])/g, '$1')
     .trim();
 
-/** Share of the text's content words found in the passages (prefix match tolerates plurals). */
+/** True when the text contains the word or a form of it (prefix match tolerates plurals). */
+const mentions = (text: string, word: string) =>
+  text.toLowerCase().includes(word.slice(0, Math.max(4, word.length - 2)));
+
+/** Share of the text's content words found in the passages. */
 export function support(text: string, passages: string[]): number {
   const words = keywords(stripCitations(text)).filter(w => w.length >= 4);
   if (!words.length) return 1;
-  const notes = passages.join(' ').toLowerCase();
-  const found = words.filter(w =>
-    notes.includes(w.slice(0, Math.max(4, w.length - 2))),
-  );
-  return found.length / words.length;
+  const notes = passages.join(' ');
+  return words.filter(w => mentions(notes, w)).length / words.length;
 }
+
+// Question words that say what is asked, not what it is about.
+const GENERIC = new Set(
+  'used use uses mean means meaning define definition describe explain example examples purpose role function important called work works must give tell list'.split(
+    ' ',
+  ),
+);
+
+/**
+ * The question's distinctive words that appear in the passages, e.g. ["cobit"]
+ * for "What is COBIT used for?". Empty when the passages share none of them.
+ */
+export function focusWords(question: string, passages: string[]): string[] {
+  const notes = passages.join(' ');
+  return keywords(question).filter(
+    w => w.length >= 3 && !GENERIC.has(w) && mentions(notes, w),
+  );
+}
+
+/** True when the answer is about the question: it uses at least one focus word. */
+export const onTopic = (text: string, focus: string[]) =>
+  !focus.length || focus.some(w => mentions(text, w));
 
 /** The passages the answer cites as [n]; the top passage when it cites none. */
 function cited(text: string, used: NoteHit[]): NoteHit[] {
@@ -74,6 +99,7 @@ export async function answerFromNotes(
   }
   const used = hits.slice(0, MAX_PASSAGES);
   const passages = used.map(h => h.text);
+  const focus = focusWords(question, passages);
   const messages: Msg[] = [
     { role: 'system', content: answerSystem(passages) },
     { role: 'user', content: question.trim() },
@@ -97,6 +123,11 @@ export async function answerFromNotes(
         }
       },
     });
+    // The notes do mention what was asked, so "not in notes" is wrong: retry, then quote them.
+    if (raw.includes(NOT_IN_NOTES) && focus.length) {
+      onText('');
+      continue;
+    }
     if (raw.includes(NOT_IN_NOTES)) {
       const text =
         "Your notes don't seem to cover that. This is the closest part:";
@@ -104,14 +135,16 @@ export async function answerFromNotes(
       return { kind: 'not-in-notes', text, sources: used.slice(0, 1) };
     }
     const text = stripCitations(raw);
-    if (text && support(raw, passages) >= MIN_SUPPORT) {
+    if (text && support(raw, passages) >= MIN_SUPPORT && onTopic(text, focus)) {
       onText(text);
       return { kind: 'answer', text, sources: cited(raw, used) };
     }
     onText('');
   }
 
-  const text = `Your notes say: "${used[0].snippet}"`;
+  // Quote the passage that mentions what was asked, not just the top one.
+  const best = used.find(h => onTopic(h.text, focus)) ?? used[0];
+  const text = `Your notes say: "${best.snippet}"`;
   onText(text);
-  return { kind: 'fallback', text, sources: used.slice(0, 1) };
+  return { kind: 'fallback', text, sources: [best] };
 }

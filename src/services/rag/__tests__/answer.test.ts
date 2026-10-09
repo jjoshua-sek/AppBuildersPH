@@ -1,6 +1,12 @@
 import type { AiBridge, CompleteOptions } from '../../../types';
 import { createMockBridge } from '../../ai/mockBridge';
-import { answerFromNotes, answerSystem, support } from '../answer';
+import {
+  answerFromNotes,
+  answerSystem,
+  focusWords,
+  onTopic,
+  support,
+} from '../answer';
 import type { NoteHit } from '../retrieve';
 
 const hit = (n: number, text: string): NoteHit => ({
@@ -172,5 +178,68 @@ describe('support', () => {
       support('Sarbanes-Oxley requires partner rotation.', notes),
     ).toBeLessThan(0.6);
     expect(support('Yes.', notes)).toBe(1); // nothing to check
+  });
+});
+
+describe('answers stay on the question', () => {
+  // From the Infinix: the COBIT passage ranked first, but the model answered from the other one.
+  const RISK = hit(
+    0,
+    'Auditors consider inherent risk and control risk when planning and assessing audits. They then report the findings.',
+  );
+  const COBIT = hit(
+    1,
+    'Finally, many organizations map their controls to COBIT, a framework for the governance and management of enterprise IT.',
+  );
+
+  it('finds the distinctive words of the question that the notes mention', () => {
+    expect(
+      focusWords('What is cobit used for?', [RISK.text, COBIT.text]),
+    ).toEqual(['cobit']);
+    expect(focusWords('What is the capital of France?', [RISK.text])).toEqual(
+      [],
+    );
+    expect(onTopic('COBIT is a governance framework.', ['cobit'])).toBe(true);
+    expect(onTopic('Auditors consider inherent risk.', ['cobit'])).toBe(false);
+    expect(onTopic('Anything goes.', [])).toBe(true);
+  });
+
+  it('retries an off-topic answer and keeps the on-topic one', async () => {
+    const b = scripted([
+      'The notes state that auditors consider inherent risk and control risk when planning and assessing audits [1].',
+      'COBIT is a framework for the governance and management of enterprise IT [1].',
+    ]);
+    const a = await answerFromNotes(b, 'What is cobit used for?', [
+      COBIT,
+      RISK,
+    ]);
+    expect(b.calls).toHaveLength(2);
+    expect(a).toMatchObject({
+      kind: 'answer',
+      text: 'COBIT is a framework for the governance and management of enterprise IT.',
+    });
+  });
+
+  it('after two off-topic answers, quotes the passage that mentions the question', async () => {
+    const offTopic =
+      'The notes state that auditors consider inherent risk and control risk when planning and assessing audits [1].';
+    const a = await answerFromNotes(
+      scripted([offTopic, offTopic]),
+      'What is cobit used for?',
+      [RISK, COBIT], // even when the other passage ranks first
+    );
+    expect(a.kind).toBe('fallback');
+    expect(a.text).toContain('COBIT, a framework for the governance');
+    expect(a.sources.map(s => s.chunkId)).toEqual(['d:1']);
+  });
+
+  it('does not accept "not in notes" when the notes mention what was asked', async () => {
+    const a = await answerFromNotes(
+      scripted(['NOT_IN_NOTES', 'NOT_IN_NOTES']),
+      'What is cobit used for?',
+      [COBIT, RISK],
+    );
+    expect(a.kind).toBe('fallback');
+    expect(a.text).toContain('COBIT');
   });
 });
