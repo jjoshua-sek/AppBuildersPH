@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -15,25 +15,63 @@ import { Bot, Send, X } from 'lucide-react-native';
 import { brand as colors, radius, space } from '../app/theme';
 import { images } from '../assets/images';
 import { Gradient } from './Gradient';
-import { bridge } from '../services/ai/llamaBridge';
+import { bridge as llamaBridge, profile } from '../services/ai/llamaBridge';
 import { askTutor } from '../services/ai/tutor';
 import { getChunk } from '../services/db/queries';
-import type { Msg, TutorSheetProps } from '../types';
+import type { AiBridge, Msg, TermRow, TutorSheetProps } from '../types';
 
-type Bubble = { from: 'tutor' | 'me'; text: string };
+type Bubble = { from: 'tutor' | 'me' | 'note'; text: string };
+
+/** The shared TutorSheetProps (src/types.ts) plus optional overrides, mainly for tests. */
+export type TutorSheetFullProps = TutorSheetProps & {
+  /** Defaults to the on-device llama.rn bridge. */
+  bridge?: AiBridge;
+  /** Max tokens per reply. Defaults to the device profile's tutorTokens. */
+  tutorTokens?: number;
+  /** Called once per tutor reply, so a game can count hints_used. */
+  onHint?(): void;
+  /** Where the term's source passage comes from. Defaults to getChunk(). */
+  getPassage?(term: TermRow): Promise<string>;
+};
+
+export const QUICK_REPLIES = ['Give me a hint', "I'm stuck", 'Pa-hint po'];
+const HISTORY_TURNS = 8; // askTutor sends the last 4 messages; keep a little more
+
+/** The term's source passage. Falls back to the description or clue if the chunk is missing. */
+async function defaultPassage(term: TermRow): Promise<string> {
+  try {
+    return (
+      (await getChunk(term.chunk_id))?.text || term.description || term.clue
+    );
+  } catch {
+    return term.description || term.clue;
+  }
+}
 
 /**
  * The Socratic tutor, opened from a crossword entry or the Daily Term. It only
  * ever talks about one term, so the leak guard in askTutor() can mask it.
  */
-export function TutorSheet({ term, visible, onClose, onSolved }: TutorSheetProps) {
+export function TutorSheet({
+  term,
+  visible,
+  onClose,
+  onSolved,
+  bridge = llamaBridge,
+  tutorTokens = profile.tutorTokens,
+  onHint,
+  getPassage = defaultPassage,
+}: TutorSheetFullProps) {
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [draft, setDraft] = useState('');
   const [live, setLive] = useState(''); // the reply being streamed
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
-  const passage = useRef('');
+  const [solved, setSolved] = useState(false);
+  // Loaded on the first message and awaited, so a fast first question still gets the passage.
+  const passage = useRef<Promise<string> | null>(null);
   const history = useRef<Msg[]>([]);
+  const open = useRef(visible); // false once the sheet closes, so late tokens are dropped
   const scroll = useRef<{ scrollToEnd(): void }>(null);
 
   // A fresh conversation for each term.
@@ -47,61 +85,81 @@ export function TutorSheet({ term, visible, onClose, onSolved }: TutorSheetProps
     setDraft('');
     setLive('');
     setStatus('');
+    setBusy(false);
+    setSolved(false);
     history.current = [];
-    passage.current = '';
-    getChunk(term.chunk_id)
-      .then(c => {
-        passage.current = c?.text ?? term.description ?? term.clue;
-      })
-      .catch(() => {
-        passage.current = term.clue;
-      });
-  }, [term.id, term.chunk_id, term.clue, term.description]);
+    passage.current = null;
+  }, [term.id, term.clue]);
 
-  const send = async () => {
-    const msg = draft.trim();
-    if (!msg || busy) return;
+  useEffect(() => {
+    open.current = visible;
+  }, [visible]);
+
+  const close = useCallback(() => {
+    open.current = false;
+    if (busy) bridge.stopGeneration();
+    onClose();
+  }, [busy, bridge, onClose]);
+
+  const send = async (raw: string) => {
+    const msg = raw.trim();
+    if (!msg || busy || solved) return;
+    open.current = true;
     setDraft('');
     setBusy(true);
     setBubbles(b => [...b, { from: 'me', text: msg }]);
-    let solved = false;
+    let wasSolved = false;
     try {
+      passage.current ??= getPassage(term);
+      const text = await passage.current;
       const reply = await askTutor(
         bridge,
         term,
-        passage.current,
+        text,
         msg,
         history.current,
         {
-          setText: setLive,
-          setStatus,
+          setText: t => open.current && setLive(t),
+          setStatus: t => open.current && setStatus(t),
           onSolved: () => {
-            solved = true;
+            wasSolved = true;
           },
         },
+        { n_predict: tutorTokens },
       );
-      if (reply) {
+      if (!open.current) return;
+      if (wasSolved) {
+        setSolved(true);
+        setBubbles(b => [
+          ...b,
+          { from: 'note', text: `Tama! The answer is ${term.term}.` },
+        ]);
+      } else if (reply) {
         history.current = [
           ...history.current,
-          { role: 'user', content: msg },
-          { role: 'assistant', content: reply },
-        ];
+          { role: 'user' as const, content: msg },
+          { role: 'assistant' as const, content: reply },
+        ].slice(-HISTORY_TURNS);
         setBubbles(b => [...b, { from: 'tutor', text: reply }]);
+        onHint?.();
       }
-    } catch (e) {
-      setBubbles(b => [
-        ...b,
-        {
-          from: 'tutor',
-          text: `Sorry, I could not answer: ${e instanceof Error ? e.message : String(e)}`,
-        },
-      ]);
+    } catch {
+      if (open.current) {
+        setBubbles(b => [
+          ...b,
+          {
+            from: 'note',
+            text: "The tutor couldn't answer just now. Try again in a moment.",
+          },
+        ]);
+      }
     } finally {
+      // Always reset, even if the sheet was closed mid-reply, so it isn't stuck when reopened.
       setLive('');
       setStatus('');
       setBusy(false);
     }
-    if (solved) onSolved();
+    if (wasSolved) onSolved();
   };
 
   return (
@@ -109,21 +167,28 @@ export function TutorSheet({ term, visible, onClose, onSolved }: TutorSheetProps
       visible={visible}
       animationType="slide"
       transparent
-      onRequestClose={onClose}
+      onRequestClose={close}
     >
       <View style={styles.backdrop}>
         <KeyboardAvoidingView
           style={styles.sheet}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Image source={images.bgCabinNight} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          <Gradient colors={['rgba(7,13,34,0.12)', 'rgba(7,13,34,0.65)']} style={StyleSheet.absoluteFill} />
+          <Image
+            source={images.bgCabinNight}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          <Gradient
+            colors={['rgba(7,13,34,0.12)', 'rgba(7,13,34,0.65)']}
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.head}>
             <View style={styles.botIcon}>
               <Bot color="#fff" size={20} />
             </View>
             <Text style={styles.title}>AI Tutor</Text>
-            <Pressable hitSlop={12} onPress={onClose} testID="tutor-close">
+            <Pressable hitSlop={12} onPress={close} testID="tutor-close">
               <X color={colors.text} size={24} />
             </Pressable>
           </View>
@@ -141,39 +206,60 @@ export function TutorSheet({ term, visible, onClose, onSolved }: TutorSheetProps
             {bubbles.map((b, i) => (
               <View
                 key={i}
-                style={[styles.bubble, b.from === 'me' && styles.mine]}
+                style={[
+                  styles.bubble,
+                  b.from === 'me' && styles.mine,
+                  b.from === 'note' && styles.note,
+                ]}
               >
                 <Text style={styles.text}>{b.text}</Text>
               </View>
             ))}
             {(live !== '' || status !== '') && (
-              <View style={styles.bubble}>
+              <View testID="tutor-pending" style={styles.bubble}>
                 <Text style={styles.text}>{live || status}</Text>
               </View>
             )}
           </ScrollView>
 
-          <View style={styles.inputBar}>
-            <TextInput
-              testID="tutor-input"
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={send}
-              placeholder="Type your question or guess..."
-              placeholderTextColor={colors.textDim}
-              style={styles.input}
-              editable={!busy}
-              returnKeyType="send"
-            />
-            <Pressable
-              testID="tutor-send"
-              style={[styles.send, busy && { opacity: 0.4 }]}
-              onPress={send}
-              disabled={busy}
-            >
-              <Send color="#fff" size={18} />
-            </Pressable>
-          </View>
+          {!solved && !busy && (
+            <View style={styles.chips}>
+              {QUICK_REPLIES.map(q => (
+                <Pressable
+                  key={q}
+                  testID={`tutor-quick-${q}`}
+                  style={styles.chip}
+                  onPress={() => send(q)}
+                >
+                  <Text style={styles.chipText}>{q}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {!solved && (
+            <View style={styles.inputBar}>
+              <TextInput
+                testID="tutor-input"
+                value={draft}
+                onChangeText={setDraft}
+                onSubmitEditing={() => send(draft)}
+                placeholder="Type your question or guess..."
+                placeholderTextColor={colors.textDim}
+                style={styles.input}
+                editable={!busy}
+                returnKeyType="send"
+              />
+              <Pressable
+                testID="tutor-send"
+                style={[styles.send, busy && { opacity: 0.4 }]}
+                onPress={() => send(draft)}
+                disabled={busy}
+              >
+                <Send color="#fff" size={18} />
+              </Pressable>
+            </View>
+          )}
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -181,7 +267,11 @@ export function TutorSheet({ term, visible, onClose, onSolved }: TutorSheetProps
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
   sheet: {
     height: '82%',
     backgroundColor: colors.bg,
@@ -216,6 +306,22 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   mine: { backgroundColor: colors.primary, alignSelf: 'flex-end' },
+  note: { backgroundColor: 'rgba(31,200,166,0.25)', alignSelf: 'center' },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+    paddingHorizontal: space.lg,
+  },
+  chip: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: 'rgba(22,34,74,0.95)',
+    paddingHorizontal: space.md,
+    paddingVertical: 6,
+  },
+  chipText: { color: colors.text, fontSize: 13 },
   text: { color: colors.text, fontSize: 15, lineHeight: 21 },
   inputBar: {
     flexDirection: 'row',
