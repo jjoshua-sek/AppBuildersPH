@@ -1,0 +1,102 @@
+[
+  {
+    "id": "sample-audittrail",
+    "doc_id": "sample",
+    "chunk_id": "sample:1",
+    "term": "audit trail",
+    "answer": "AUDITTRAIL",
+    "clue": "A chronological record of who accessed a system, what they changed, and when.",
+    "description": "A log of user actions inside a system, with the time each one happened.",
+    "why": "It lets auditors trace any change back to a person; if users can edit it, nothing in it can be trusted."
+  },
+  {
+    "id": "sample-materiality",
+    "doc_id": "sample",
+    "chunk_id": "sample:1",
+    "term": "materiality",
+    "answer": "MATERIALITY",
+    "clue": "The test of whether an error is large enough to change the decision of someone relying on reports.",
+    "description": "Materiality is the threshold above which a misstatement matters to the people who use the reports.",
+    "why": "It tells auditors what to report and where to focus, so they do not drown in one-peso differences."
+  },
+  {
+    "id": "sample-evidence",
+    "doc_id": "sample",
+    "chunk_id": "sample:1",
+    "term": "evidence",
+    "answer": "EVIDENCE",
+    "clue": "Logs, screenshots, interview notes and re-performed calculations an auditor gathers to support an opinion.",
+    "description": "The information an auditor collects to back up each finding; it must be sufficient, relevant and reliable.",
+    "why": "An audit opinion is only as strong as the proof behind it."
+  },
+  {
+    "id": "sample-sampling",
+    "doc_id": "sample",
+    "chunk_id": "sample:1",
+    "term": "sampling",
+    "answer": "SAMPLING",
+    "clue": "Testing a selected subset of transactions and projecting the results to the whole population.",
+    "description": "Checking some items instead of all of them, then drawing a conclusion about the full set.",
+    "why": "No team can test every transaction, so this is how audits stay possible within time and budget."
+  },
+  {
+    "id": "sample-inherentrisk",
+    "doc_id": "sample",
+    "chunk_id": "sample:0",
+    "term": "inherent risk",
+    "answer": "INHERENTRISK",
+    "clue": "The chance a material error happens before any safeguards are applied to a system.",
+    "description": "The level of risk built into an activity itself, such as large automatic money transfers.",
+    "why": "It tells auditors which systems deserve the closest look before they even test any controls."
+  },
+  {
+    "id": "sample-controlrisk",
+    "doc_id": "sample",
+    "chunk_id": "sample:0",
+    "term": "control risk",
+    "answer": "CONTROLRISK",
+    "clue": "The chance that an organization's own safeguards fail to prevent or catch an error.",
+    "description": "The risk that internal controls do not work as designed.",
+    "why": "High values here mean the auditor must test more transactions directly instead of trusting the controls."
+  },
+  {
+    "id": "sample-cobit",
+    "doc_id": "sample",
+    "chunk_id": "sample:1",
+    "term": "COBIT",
+    "answer": "COBIT",
+    "clue": "A framework for the governance and management of enterprise IT, used to map controls.",
+    "description": "COBIT is a widely used framework of IT governance objectives, processes and maturity levels.",
+    "why": "It gives auditors and management a shared language, so findings map to recognized objectives."
+  },
+  {
+    "id": "sample-isaca",
+    "doc_id": "sample",
+    "chunk_id": "sample:0",
+    "term": "ISACA",
+    "answer": "ISACA",
+    "clue": "The global professional association that issues the CISA certification and publishes audit guidance.",
+    "description": "ISACA is the professional body for IT audit, governance and security practitioners.",
+    "why": "Its standards and the CISA credential define how IT audits are done in the Philippines and worldwide."
+  },
+  {
+    "id": "sample-independence",
+    "doc_id": "sample",
+    "chunk_id": "sample:0",
+    "term": "independence",
+    "answer": "INDEPENDENCE",
+    "clue": "Freedom from relationships that could bias an auditor's judgment about the systems reviewed.",
+    "description": "Being free of conflicts of interest, so a programmer never audits the system they built.",
+    "why": "Without it, management and regulators cannot rely on any audit finding."
+  },
+  {
+    "id": "sample-assurance",
+    "doc_id": "sample",
+    "chunk_id": "sample:0",
+    "term": "assurance",
+    "answer": "ASSURANCE",
+    "clue": "Confidence given to management and the board that systems are reliable and assets are safe.",
+    "description": "The level of confidence an audit provides about systems, data and assets.",
+    "why": "It is the product an audit delivers: decision makers act on it."
+  }
+]
