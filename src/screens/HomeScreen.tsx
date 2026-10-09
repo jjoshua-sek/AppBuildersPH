@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Bot,
+  CalendarCheck,
   Camera,
   ChevronRight,
   Grid3x3,
@@ -85,9 +86,9 @@ export function HomeScreen() {
               <Text style={styles.brand}>Backpack{'\n'}Tutor</Text>
             </Pressable>
             <Pressable
-              accessibilityLabel="App information"
+              accessibilityLabel="Study planner and school connection"
               hitSlop={12}
-              onPress={() => nav.navigate('Proof')}
+              onPress={() => nav.navigate('SchoolPlanner')}
             >
               <Settings color="#fff" size={22} />
             </Pressable>
@@ -255,6 +256,15 @@ export function HomeScreen() {
               <Text style={styles.shortcutText}>Ask my notes</Text>
             </Pressable>
           </View>
+          <Pressable
+            style={styles.shortcut}
+            onPress={() => nav.navigate('SchoolPlanner')}
+          >
+            <CalendarCheck color="#C4CDFF" size={18} />
+            <Text style={styles.shortcutText}>
+              School updates &amp; to-do list
+            </Text>
+          </Pressable>
           <Text style={styles.model}>
             {stats.modelName} · {stats.gpu ? 'GPU' : 'CPU'} · on-device
           </Text>

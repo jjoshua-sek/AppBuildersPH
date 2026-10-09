@@ -2,6 +2,7 @@ package com.backpacktutor
 
 import android.app.Application
 import com.backpacktutor.ocr.OcrPackage
+import com.backpacktutor.school.SchoolAgentPackage
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -19,6 +20,7 @@ class MainApplication : Application(), ReactApplication {
           // Packages that cannot be autolinked yet can be added manually here, for example:
           // add(MyReactNativePackage())
           add(OcrPackage()) // on-device OCR (Lane B)
+          add(SchoolAgentPackage())
         },
     )
   }

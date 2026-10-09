@@ -1,6 +1,11 @@
-import React from 'react';
-import { Image } from 'react-native';
-import { DarkTheme, NavigationContainer } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { AppState, Image } from 'react-native';
+import {
+  createNavigationContainerRef,
+  DarkTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
+import NetInfo from '@react-native-community/netinfo';
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps,
@@ -26,6 +31,8 @@ import { AskNotesScreen } from '../screens/AskNotesScreen';
 import { ProofPanelScreen } from '../screens/ProofPanelScreen';
 import { DevBenchScreen } from '../screens/DevBenchScreen';
 import { UiCheckScreen } from '../screens/UiCheckScreen';
+import { SchoolPlannerScreen } from '../screens/SchoolPlannerScreen';
+import { schoolAgent, schoolAgentAvailable } from '../services/school/agent';
 import { useDeckStore } from '../store/useDeckStore';
 
 export type RootStackParamList = {
@@ -38,6 +45,7 @@ export type RootStackParamList = {
   Proof: undefined;
   DevBench: undefined;
   UiCheck: undefined;
+  SchoolPlanner: undefined;
 };
 export type TabParamList = {
   Home: undefined;
@@ -52,6 +60,7 @@ export type Props<T extends keyof RootStackParamList> = NativeStackScreenProps<
 >;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const navTheme = {
@@ -155,8 +164,60 @@ function Ask({ navigation }: Props<'Ask'>) {
 }
 
 export default function Navigation() {
+  useEffect(() => {
+    if (!schoolAgentAvailable()) return;
+    let live = true;
+    const resume = async () => {
+      try {
+        if (!live) return;
+        if (navigationRef.isReady()) {
+          const requested = await schoolAgent.consumePlannerRequest();
+          if (requested && live) navigationRef.navigate('SchoolPlanner');
+        }
+        const state = await schoolAgent.getState();
+        if (
+          live &&
+          state.connected &&
+          state.online &&
+          !state.syncing &&
+          Date.now() - state.lastSync > 5 * 60 * 1000
+        )
+          await schoolAgent.sync();
+      } catch {
+        /* The planner displays connection errors without blocking the study games. */
+      }
+    };
+    schoolAgent
+      .initialize()
+      .then(resume)
+      .catch(() => {});
+    const app = AppState.addEventListener('change', next => {
+      if (next === 'active') void resume();
+    });
+    const network = NetInfo.addEventListener(connection => {
+      if (connection.isInternetReachable) void resume();
+    });
+    return () => {
+      live = false;
+      app.remove();
+      network();
+    };
+  }, []);
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      onReady={() => {
+        if (schoolAgentAvailable())
+          schoolAgent
+            .consumePlannerRequest()
+            .then(requested => {
+              if (requested && navigationRef.isReady())
+                navigationRef.navigate('SchoolPlanner');
+            })
+            .catch(() => {});
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen name="Ingest" component={Ingest} />
@@ -182,6 +243,7 @@ export default function Navigation() {
             <UiCheckScreen onBack={() => navigation.goBack()} />
           )}
         </Stack.Screen>
+        <Stack.Screen name="SchoolPlanner" component={SchoolPlannerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
