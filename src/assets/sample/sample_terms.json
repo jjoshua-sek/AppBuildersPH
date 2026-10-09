@@ -1,0 +1,102 @@
+[
+  {
+    "id": "sample-1",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:0",
+    "term": "assurance",
+    "answer": "ASSURANCE",
+    "clue": "A reasonable but not absolute level of confidence that systems work as intended.",
+    "description": "Assurance is the reasonable, not absolute, confidence an audit gives management that systems work as intended.",
+    "why": "An audit can never check everything, so it promises reasonable confidence rather than a guarantee."
+  },
+  {
+    "id": "sample-2",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:0",
+    "term": "risk",
+    "answer": "RISK",
+    "clue": "The chance that an event will stop an organization from meeting its objectives.",
+    "description": "Risk is the chance that an event stops the organization from meeting its objectives.",
+    "why": "Auditors spend more time on high-risk areas such as payroll and online payments."
+  },
+  {
+    "id": "sample-3",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:0",
+    "term": "materiality",
+    "answer": "MATERIALITY",
+    "clue": "How large or serious an error must be to change a reasonable user's decision.",
+    "description": "Materiality is the size or nature of an error that would change a reasonable user's decision.",
+    "why": "It tells the auditor which errors matter, so a rounding error is ignored but a missing approval is not."
+  },
+  {
+    "id": "sample-4",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:0",
+    "term": "COBIT",
+    "answer": "COBIT",
+    "clue": "An ISACA framework for governing and managing enterprise IT and its control objectives.",
+    "description": "COBIT is ISACA's framework for the governance and management of enterprise IT.",
+    "why": "It gives auditors a shared set of control objectives that link IT processes to business goals."
+  },
+  {
+    "id": "sample-5",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:0",
+    "term": "segregation",
+    "answer": "SEGREGATION",
+    "clue": "Splitting request, approval, and recording of a transaction among different people so no one person controls it.",
+    "description": "Segregation of duties means no single person can request, approve, and record the same transaction.",
+    "why": "Fraud then needs two or more people working together, which makes it much harder."
+  },
+  {
+    "id": "sample-6",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:1",
+    "term": "sampling",
+    "answer": "SAMPLING",
+    "clue": "Testing a selected portion of a population to draw conclusions about the whole.",
+    "description": "Sampling is testing part of a population and drawing conclusions about all of it.",
+    "why": "Auditors cannot check every transaction, and statistical methods show how confident they can be."
+  },
+  {
+    "id": "sample-7",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:1",
+    "term": "evidence",
+    "answer": "EVIDENCE",
+    "clue": "Information such as logs, screenshots, and interview notes that supports an auditor's conclusion.",
+    "description": "Evidence is the information an auditor collects, such as system logs, screenshots and interview notes.",
+    "why": "Every audit conclusion must rest on it, and evidence the auditor produces directly is the most reliable."
+  },
+  {
+    "id": "sample-8",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:1",
+    "term": "audit trail",
+    "answer": "AUDITTRAIL",
+    "clue": "A chronological record of who did what in a system, and when.",
+    "description": "An audit trail is a chronological record of who did what in a system, and when.",
+    "why": "Without one, unauthorized changes can go unnoticed."
+  },
+  {
+    "id": "sample-9",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:1",
+    "term": "encryption",
+    "answer": "ENCRYPTION",
+    "clue": "Turning readable data into a coded form that only holders of the correct key can read.",
+    "description": "Encryption turns readable data into a coded form that only people with the correct key can read.",
+    "why": "It protects data even if the files or devices holding it are stolen."
+  },
+  {
+    "id": "sample-10",
+    "doc_id": "sample-it-audit",
+    "chunk_id": "sample-it-audit:1",
+    "term": "backup",
+    "answer": "BACKUP",
+    "clue": "A regular copy of data that lets an organization recover after a failure.",
+    "description": "A backup is a regular copy of data kept so the organization can restore it.",
+    "why": "It lets the organization recover after a failure or a ransomware attack."
+  }
+]
