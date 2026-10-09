@@ -25,4 +25,19 @@ Paste DevBench reports here, one block per phone × model. See `docs/RUNTIME_SET
 
 **Notes**
 - Generation 10–12 tok/s passes the ≥ 8 target; load 3.5 s passes < 10 s.
-- Extraction failed: `extractTokens` was 180, and 18 s/chunk at ~10 tok/s means the model hit that limit, so the JSON was cut off. Fixed by raising it to 320 and recovering finished terms from truncated or fenced output. Re-run pending.
+- Extraction failed: `extractTokens` was 180, and 18 s/chunk at ~10 tok/s means the model hit that limit, so the JSON was cut off. Fixed by raising it to 320 and recovering finished terms from truncated or fenced output. Re-run below.
+
+### Infinix X6880 (android-cpu): run 2, after the extraction fix
+
+- Model: Gemma 3 1B IT, Q8_0, load 12.2 s (first load after reinstall), backend CPU 2 threads
+
+| Threads | GPU layers | Prompt tok/s | Generation tok/s |
+|---|---|---|---|
+| 2 | 0 | 71.4 | 10.8 |
+
+- Extraction: **JSON 3/3**, 2.0 valid terms/chunk, 19.0 s/chunk
+
+**Notes**
+- JSON now parses every time. 2 terms/chunk is too few: a page is about 3 chunks, so about 6 terms, the minimum for a crossword.
+- Many key terms in the test text are longer than the old 12-letter limit (AUTHENTICATION 14, ACCESS CONTROL 13, AUTHORIZATION 13, INTERNAL CONTROL 15). Raised the limit to 15. DevBench now logs every rejected term and why.
+- Load time of 12.2 s was the first launch after reinstalling (files not yet cached). Run 1 loaded in 3.5 s. Re-check on a normal launch.

@@ -117,7 +117,7 @@ export function buildCrossword(
   rand: () => number = Math.random,
 ): Puzzle | null {
   const uniq = [...new Map(words.map(w => [w.answer, w])).values()]
-    .filter(w => /^[A-Z]{3,12}$/.test(w.answer))
+    .filter(w => /^[A-Z]{3,15}$/.test(w.answer))
     .slice(0, 20);
   if (uniq.length < 2) return null;
   let best: Placed[] = [];
