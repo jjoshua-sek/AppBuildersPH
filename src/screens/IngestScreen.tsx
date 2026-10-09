@@ -26,9 +26,15 @@ export type IngestScreenProps = {
   bridge: AiBridge;
   profile: Profile;
   onPlay(docId: string): void;
-  /** Camera + OCR (`ingest/ocr.ts`). The camera button is hidden until it is provided. */
+  /** Camera + OCR: pass `snapAndRead` from `ingest/ocr.ts`. The button is hidden without it. */
   snapPage?: () => Promise<string>;
+  /** Existing photo + OCR: pass `pickAndRead`. Safer on stage: a pre-tested page. */
+  pickPage?: () => Promise<string>;
 };
+
+/** Thrown by ingest/ocr.ts when the student backs out of the camera or picker. */
+const isCancel = (e: unknown) =>
+  e instanceof Error && e.name === 'OcrCancelled';
 
 const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
@@ -58,6 +64,7 @@ export function IngestScreen({
   profile,
   onPlay,
   snapPage,
+  pickPage,
 }: IngestScreenProps) {
   const c = useColors();
   const status = useDeckStore(s => s.status);
@@ -82,16 +89,16 @@ export function IngestScreen({
     resetIngest();
   };
 
-  const snap = async () => {
-    if (!snapPage) return;
+  const snap = async (readPage: () => Promise<string>) => {
     setSnapping(true);
     setSnapError(null);
     try {
-      const read = await snapPage();
+      const read = await readPage();
       setText(prev => (prev.trim() ? `${prev.trim()}\n\n${read}` : read)); // pages add up
       setSource('camera');
       resetIngest();
     } catch (e) {
+      if (isCancel(e)) return;
       setSnapError(e instanceof Error ? e.message : 'Could not read the photo');
     } finally {
       setSnapping(false);
@@ -130,9 +137,19 @@ export function IngestScreen({
           <Btn
             testID="snap"
             label={snapping ? 'Reading photo…' : '📷 Snap a page'}
-            onPress={snap}
+            onPress={() => snap(snapPage)}
             disabled={reading || snapping}
             c={c}
+          />
+        )}
+        {pickPage && (
+          <Btn
+            testID="pick"
+            label="🖼 From photos"
+            onPress={() => snap(pickPage)}
+            disabled={reading || snapping}
+            c={c}
+            kind="ghost"
           />
         )}
         <Btn

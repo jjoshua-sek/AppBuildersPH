@@ -111,6 +111,10 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // On-device OCR. The BUNDLED model (works offline on a fresh install);
+    // never the play-services-mlkit-* artifact, which downloads its model on first use.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

@@ -11,6 +11,8 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		B7C0C0A10000000000000001 /* Ocr.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C0C0A10000000000000003 /* Ocr.swift */; };
+		B7C0C0A10000000000000002 /* Ocr.m in Sources */ = {isa = PBXBuildFile; fileRef = B7C0C0A10000000000000004 /* Ocr.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +26,9 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = BackpackTutor/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = BackpackTutor/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		B7C0C0A10000000000000003 /* Ocr.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Ocr.swift; path = BackpackTutor/Ocr/Ocr.swift; sourceTree = "<group>"; };
+		B7C0C0A10000000000000004 /* Ocr.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = Ocr.m; path = BackpackTutor/Ocr/Ocr.m; sourceTree = "<group>"; };
+		B7C0C0A10000000000000005 /* BackpackTutor-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "BackpackTutor-Bridging-Header.h"; path = "BackpackTutor/BackpackTutor-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +48,9 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				B7C0C0A10000000000000005 /* BackpackTutor-Bridging-Header.h */,
+				B7C0C0A10000000000000003 /* Ocr.swift */,
+				B7C0C0A10000000000000004 /* Ocr.m */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -245,6 +253,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				B7C0C0A10000000000000001 /* Ocr.swift in Sources */,
+				B7C0C0A10000000000000002 /* Ocr.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -260,6 +270,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = BackpackTutor/Info.plist;
+				SWIFT_OBJC_BRIDGING_HEADER = "BackpackTutor/BackpackTutor-Bridging-Header.h";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -289,6 +300,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = BackpackTutor/Info.plist;
+				SWIFT_OBJC_BRIDGING_HEADER = "BackpackTutor/BackpackTutor-Bridging-Header.h";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

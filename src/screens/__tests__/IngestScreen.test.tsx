@@ -123,6 +123,22 @@ it('puts snapped text in the box for checking, and adds pages together', async (
   expect(byId('notes').props.value).toBe('Page one text.\n\nPage two text.');
 });
 
+it('reads a picked photo, and ignores a cancelled camera', async () => {
+  const cancel = Object.assign(new Error('Cancelled'), {
+    name: 'OcrCancelled',
+  });
+  await render({
+    snapPage: jest.fn().mockRejectedValue(cancel),
+    pickPage: jest.fn().mockResolvedValue('Picked page text.'),
+  });
+  await act(async () => byId('snap').props.onPress());
+  expect(root.root.findAll(n => n.props.children === 'Cancelled')).toHaveLength(
+    0,
+  );
+  await act(async () => byId('pick').props.onPress());
+  expect(byId('notes').props.value).toBe('Picked page text.');
+});
+
 it('shows a camera error without losing the typed text', async () => {
   await render({
     snapPage: jest.fn().mockRejectedValue(new Error('No photo')),
