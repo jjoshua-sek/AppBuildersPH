@@ -6,6 +6,7 @@ import type { Profile } from '../services/device/deviceProfile';
 import {
   fillWhyCards,
   ingest,
+  MIN_TERMS_TO_PLAY,
   type CancelToken,
   type Progress,
   type WhyFiller,
@@ -167,7 +168,11 @@ export function bumpWhy(termId: string) {
   why?.bump(termId);
 }
 
-/** Play once the DB already holds enough selected terms; a finished small deck can still use the Clue List. */
+/**
+ * Play unlocks mid-ingest at READY_TERMS (a full crossword), or once the ingest
+ * has finished with MIN_TERMS_TO_PLAY or more (the Clue List covers small decks).
+ */
 export const canPlay = (s: DeckState) =>
   !!s.progress &&
-  (s.progress.ready || (s.status === 'done' && s.progress.selected >= 2));
+  (s.progress.ready ||
+    (s.status === 'done' && s.progress.selected >= MIN_TERMS_TO_PLAY));

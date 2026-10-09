@@ -234,6 +234,12 @@ describe('progressLine', () => {
     expect(progressLine('done', { ...p, found: 1, selected: 1 })).toBe(
       'Done · only 1 term found. Add more notes or snap another page.',
     );
+    expect(progressLine('done', { ...p, found: 2, selected: 2 })).toBe(
+      'Done · only 2 terms found. Add more notes or snap another page.',
+    );
+    expect(progressLine('done', { ...p, found: 3, selected: 3 })).toBe(
+      'Done · 3 terms found, 3 in your puzzle',
+    );
   });
   it('says when it was stopped or skipped chunks', () => {
     expect(progressLine('done', { ...p, cancelled: true })).toBe(

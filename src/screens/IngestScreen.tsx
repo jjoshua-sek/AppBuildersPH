@@ -11,7 +11,7 @@ import {
 import { colors, ui } from '../app/theme';
 import { SAMPLE_TEXT, SAMPLE_TITLE } from '../assets/sample';
 import type { Profile } from '../services/device/deviceProfile';
-import type { Progress } from '../services/ingest/pipeline';
+import { MIN_TERMS_TO_PLAY, type Progress } from '../services/ingest/pipeline';
 import type { AiBridge } from '../types';
 import {
   cancelIngest,
@@ -64,7 +64,7 @@ export function progressLine(
   const skipped = p.failedChunks
     ? ` · ${plural(p.failedChunks, 'chunk')} skipped`
     : '';
-  return p.selected >= 2
+  return p.selected >= MIN_TERMS_TO_PLAY
     ? `${head} · ${plural(p.found, 'term')} found, ${
         p.selected
       } in your puzzle${skipped}`

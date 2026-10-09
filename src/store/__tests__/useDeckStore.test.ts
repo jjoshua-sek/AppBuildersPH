@@ -108,7 +108,7 @@ it('resetIngest clears a finished ingest but keeps the current deck', async () =
   expect(deckStore.getState().currentDocId).toBe('other');
 });
 
-it('canPlay: ready mid-ingest, or a finished deck with at least 2 terms', () => {
+it('canPlay: ready mid-ingest, or a finished deck with at least 3 terms', () => {
   const p = {
     docId: 'd',
     chunk: 1,
@@ -140,6 +140,20 @@ it('canPlay: ready mid-ingest, or a finished deck with at least 2 terms', () => 
       ...base,
       status: 'done',
       progress: { ...p, selected: 1, ready: false },
+    }),
+  ).toBe(false);
+  expect(
+    canPlay({
+      ...base,
+      status: 'done',
+      progress: { ...p, selected: 2, ready: false },
+    }),
+  ).toBe(false);
+  expect(
+    canPlay({
+      ...base,
+      status: 'error',
+      progress: { ...p, selected: 4, ready: false },
     }),
   ).toBe(false);
 });

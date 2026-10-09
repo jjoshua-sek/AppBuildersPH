@@ -14,8 +14,10 @@ import type { Profile } from '../device/deviceProfile';
 import { selectTerms } from '../rag/termSelect';
 import { chunk } from './chunker';
 
-/** Play is enabled once this many crossword terms are saved and selected. */
+/** Play unlocks mid-ingest once this many crossword terms are saved and selected. */
 export const READY_TERMS = 6;
+/** Once the ingest has finished, this many is enough: the game falls back to the Clue List. */
+export const MIN_TERMS_TO_PLAY = 3;
 export const MAX_PUZZLE_TERMS = 10;
 const CHUNK_OVERLAP = 30;
 
