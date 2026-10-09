@@ -24,11 +24,77 @@ export function messageSolves(msg: string, answer: string): boolean {
   return false;
 }
 
-export function fallbackHint(term: Pick<TermRow, 'answer' | 'clue'>, masked: string) {
+// Words that make a message a question or request rather than a guess.
+const NOT_A_GUESS =
+  /\b(what|why|how|who|where|when|which|hint|help|stuck|explain|tell|give|clue|mean|ano|paano|bakit|sino|saan|tulong|pahint|hindi|alam|ok|okay|thanks|thank|salamat|yes|no|oo|sige|hi|hello)\b/i;
+// Filler around a guess: "is it ATP?", "ATP ba?", "ATP yata po".
+const FILLER = new Set([
+  'IS',
+  'IT',
+  'BA',
+  'YATA',
+  'PO',
+  'MAYBE',
+  'SIGURO',
+  'KAYA',
+  'ITO',
+  'THE',
+  'A',
+  'AN',
+  'OR',
+]);
+
+/**
+ * The student's guess, when the message is a short guess ("ATP?", "is it NADH")
+ * that isn't the answer. The model never sees the answer, so the app tells it
+ * the guess is wrong; otherwise it may praise a wrong guess.
+ */
+export function wrongGuess(msg: string, answer: string): string | null {
+  if (NOT_A_GUESS.test(msg.replace(/-/g, ''))) return null;
+  const words = (msg.toUpperCase().match(/[A-Z]+/g) ?? []).filter(
+    w => !FILLER.has(w),
+  );
+  if (words.length < 1 || words.length > 3) return null;
+  if (messageSolves(msg, answer)) return null;
+  return words.join(' ');
+}
+
+// A reply that presents something as "the answer" (even a wrong one) reads as giving it away:
+// "Answer:", "the answer is", "ang sagot ay", or naming a word as the term ('recall the term "NADPH"').
+const ANSWER_CLAIM =
+  /\b(?:the|correct|right|final)\s+answer\s+is\b|\banswer\s*\**\s*:|\bsagot\s*(?:ay\b|:)|\bterm\s*\**\s*["“'‘]\s*[A-Za-z]/i;
+export const claimsAnswer = (text: string) => ANSWER_CLAIM.test(text);
+
+// Praise the model may add even when told the guess is wrong ("That's a good start!").
+const PRAISE =
+  /\b(?:good|great|nice|excellent|awesome)\s+(?:start|job|guess|try|thinking|idea|work)\b|\byou'?re\s+(?:right|correct|on the right track)\b|\bthat'?s\s+(?:right|correct|it)\b|\b(?:correct|exactly|tama|galing)\b/i;
+
+/** Drops sentences that praise the student; used after a wrong guess. */
+export const dropPraise = (text: string) =>
+  text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .filter(sentence => !PRAISE.test(sentence))
+    .join(' ')
+    .trim();
+
+/** Small models add markdown; the chat shows plain text. */
+export const plainText = (text: string) =>
+  text
+    .replace(/\*\*|__|`/g, '')
+    .replace(/^\s*#+\s*/gm, '')
+    .replace(/^\s*[*-]\s+/gm, '')
+    .replace(/\*/g, '');
+
+export function fallbackHint(
+  term: Pick<TermRow, 'answer' | 'clue'>,
+  masked: string,
+) {
   const sentence = masked.split(/(?<=[.!?])\s+/).find(s => s.includes(MASK));
   return (
     `Here's a nudge: it starts with "${term.answer[0]}" and has ${term.answer.length} letters.` +
-    (sentence ? ` Your notes say: "${sentence.trim()}"` : ` Re-read the clue: ${term.clue}`)
+    (sentence
+      ? ` Your notes say: "${sentence.trim()}"`
+      : ` Re-read the clue: ${term.clue}`)
   );
 }
 
@@ -56,34 +122,59 @@ export async function askTutor(
   }
 
   const masked = maskTerm(passage, term.term);
+  const guess = wrongGuess(studentMsg, term.answer);
   const messages: Msg[] = [
-    { role: 'system', content: tutorSystem(term.clue, masked) },
+    {
+      role: 'system',
+      content: tutorSystem(term.clue, masked, guess ?? undefined),
+    },
     ...history.slice(-4),
     { role: 'user', content: studentMsg },
   ];
+  // After a wrong guess the app gives the verdict itself; the 1B model may still praise it.
+  const verdict = guess ? `Not quite, "${guess}" isn't it. ` : '';
+  const polish = (s: string) =>
+    guess ? dropPraise(plainText(s)) : plainText(s).trim();
+  const show = (s: string) => ui.setText(verdict + polish(s));
 
   for (let attempt = 0; attempt < 2; attempt++) {
     ui.setStatus(attempt ? 'Let me rephrase that…' : 'Thinking…');
-    const guard = new StreamGuard(term.term, ui.setText);
+    const guard = new StreamGuard(term.term, show);
+    let raw = '';
+    let claimed = false;
     const text = await bridge.complete({
       messages,
       n_predict: settings.n_predict,
       temperature: attempt ? 0.3 : 0.7,
       priority: 'high',
       onToken: t => {
+        if (claimed || guard.leaked) return;
+        raw += t;
+        if (claimsAnswer(raw)) {
+          claimed = true;
+          bridge.stopGeneration();
+          return;
+        }
         guard.push(t);
         if (guard.leaked) bridge.stopGeneration();
       },
     });
-    if (!guard.leaked && !leaks(text, term.term)) {
-      ui.setText(text);
+    const reply = polish(text);
+    if (
+      reply &&
+      !claimed &&
+      !claimsAnswer(text) &&
+      !guard.leaked &&
+      !leaks(text, term.term)
+    ) {
+      ui.setText(verdict + reply);
       ui.setStatus('');
-      return text;
+      return verdict + reply;
     }
     ui.setText('');
   }
 
-  const fb = fallbackHint(term, masked);
+  const fb = verdict + fallbackHint(term, masked);
   ui.setText(fb);
   ui.setStatus('');
   return fb;

@@ -119,7 +119,7 @@ export async function benchLeaks(
       );
       guardedMs += Date.now() - t0;
       if (shown && leaks(shown, c.term)) r.visibleLeaks++;
-      if (shown?.startsWith("Here's a nudge")) r.fallbacks++;
+      if (shown?.includes("Here's a nudge")) r.fallbacks++;
     }
     log(`${c.term}: ${r.attempts} attempts so far, raw leaks ${r.rawLeaks}, visible ${r.visibleLeaks}`);
   }
