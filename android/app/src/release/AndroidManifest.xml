@@ -1,0 +1,7 @@
+<!-- Release builds have no network permission at all: the OS blocks every socket,
+     so "works offline" is guaranteed by Android, not just by our code.
+     Debug builds keep INTERNET for Metro. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+</manifest>
