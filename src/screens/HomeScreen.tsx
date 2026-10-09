@@ -14,6 +14,7 @@ import {
   CalendarCheck,
   Camera,
   ChevronRight,
+  Brain,
   FilePlus,
   ListChecks,
   Grid3x3,
@@ -281,6 +282,17 @@ export function HomeScreen() {
                 <Text style={styles.shortcutText}>Review terms</Text>
               </Pressable>
             </View>
+          )}
+          {current && !dbError && (
+            <Pressable
+              testID="quiz"
+              style={[styles.shortcut, current.terms < 2 && styles.disabled]}
+              disabled={current.terms < 2}
+              onPress={() => nav.navigate('Quiz', { docId: current.id })}
+            >
+              <Brain color="#C4CDFF" size={18} />
+              <Text style={styles.shortcutText}>Quiz</Text>
+            </Pressable>
           )}
           <Pressable
             style={styles.shortcut}

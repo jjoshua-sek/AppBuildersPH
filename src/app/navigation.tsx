@@ -27,6 +27,7 @@ import { WordscapeScreen } from '../screens/WordscapeScreen';
 import { DailyTermScreen } from '../screens/DailyTermScreen';
 import { AskNotesScreen } from '../screens/AskNotesScreen';
 import { ReviewTermsScreen } from '../screens/ReviewTermsScreen';
+import { QuizScreen } from '../screens/QuizScreen';
 import { ProofPanelScreen } from '../screens/ProofPanelScreen';
 import { DevBenchScreen } from '../screens/DevBenchScreen';
 import { UiCheckScreen } from '../screens/UiCheckScreen';
@@ -39,6 +40,7 @@ export type RootStackParamList = {
   /** With `appendTo`, the scan is added to that deck as another page. */
   Ingest: { appendTo?: string } | undefined;
   ReviewTerms: { docId: string };
+  Quiz: { docId: string };
   Crossword: { docId: string };
   Wordscape: { docId: string };
   DailyTerm: { docId?: string };
@@ -156,6 +158,16 @@ function ReviewTerms({ navigation, route }: Props<'ReviewTerms'>) {
   );
 }
 
+function Quiz({ navigation, route }: Props<'Quiz'>) {
+  return (
+    <QuizScreen
+      bridge={bridge}
+      docId={route.params.docId}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
 function Ask({ navigation }: Props<'Ask'>) {
   const docId = useDeckStore(s => s.currentDocId);
   return (
@@ -230,6 +242,7 @@ export default function Navigation() {
         <Stack.Screen name="DailyTerm" component={DailyTermScreen} />
         <Stack.Screen name="Ask" component={Ask} />
         <Stack.Screen name="ReviewTerms" component={ReviewTerms} />
+        <Stack.Screen name="Quiz" component={Quiz} />
         <Stack.Screen name="Proof">
           {({ navigation }: Props<'Proof'>) => (
             <ProofPanelScreen onBack={() => navigation.goBack()} />

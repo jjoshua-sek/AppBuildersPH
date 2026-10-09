@@ -89,3 +89,63 @@ it('shows a model error', async () => {
     'Embedder not loaded',
   );
 });
+
+describe('written answer', () => {
+  /** Answers with the first sentence of note [1], citing it. */
+  function answeringBridge(): AiBridge {
+    const mock = createMockBridge();
+    return {
+      ...mock,
+      async complete(o) {
+        const sys = o.messages[0].content;
+        const note1 = sys.match(/\[1\] ([^.]*\.)/)![1];
+        const reply = `${note1} [1]`;
+        for (const tok of reply.match(/\S+\s*/g) ?? []) o.onToken?.(tok);
+        return reply;
+      },
+    };
+  }
+
+  it('streams an answer from the notes and links the cited passage', async () => {
+    const bridge = answeringBridge();
+    await startIngest(bridge, PROFILES['android-cpu'], {
+      title: 'IT Audit',
+      source: 'paste',
+      text: SAMPLE_TEXT,
+    });
+    await render(bridge);
+    await ask('What is COBIT used for?');
+    const answer = [byId('answer-text').props.children].flat().join('');
+    expect(answer.length).toBeGreaterThan(10);
+    expect(answer).not.toContain('[1]');
+    expect(texts().some(t => t.startsWith('From: IT Audit · part '))).toBe(
+      true,
+    );
+
+    const source = root.root.findAll(n =>
+      /^source-/.test(n.props.testID ?? ''),
+    )[0];
+    await act(async () => source.props.onPress());
+    expect(texts()).toContain('Show less'); // the cited passage is expanded
+  });
+
+  it('keeps the passages when the answer fails', async () => {
+    const good = answeringBridge();
+    await startIngest(good, PROFILES['android-cpu'], {
+      title: 'IT Audit',
+      source: 'paste',
+      text: SAMPLE_TEXT,
+    });
+    await render({
+      ...good,
+      complete: async () => {
+        throw new Error('LLM not loaded');
+      },
+    });
+    await ask('What is COBIT used for?');
+    expect(has('hit-0')).toBe(true);
+    expect([byId('answer-error').props.children].flat().join('')).toContain(
+      'LLM not loaded',
+    );
+  });
+});

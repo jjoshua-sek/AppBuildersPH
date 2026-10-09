@@ -67,3 +67,11 @@ it('Home → Review terms opens the review screen for the current deck', async (
   await flush();
   expect(has('puzzle-heading')).toBe(false);
 });
+
+it('Home → Quiz opens the quiz for the current deck', async () => {
+  expect(all('quiz')[0].props.disabled).toBe(false); // the deck has 6 terms
+  await act(async () => all('quiz')[0].props.onPress());
+  await flush();
+  // the mocked database returns no term rows, so the quiz explains instead of asking
+  expect(has('too-few')).toBe(true);
+});
