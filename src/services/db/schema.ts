@@ -8,6 +8,7 @@ export const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, term_id TEXT, mode TEXT,
     correct INTEGER, hints_used INTEGER, ts INTEGER)`,
   'CREATE TABLE IF NOT EXISTS daily (day TEXT, doc_id TEXT, term_id TEXT, PRIMARY KEY (day, doc_id))',
+  'CREATE TABLE IF NOT EXISTS daily_rounds (day TEXT, doc_id TEXT, term_id TEXT, guesses TEXT, solved INTEGER DEFAULT 0, PRIMARY KEY (day, doc_id))',
   'CREATE INDEX IF NOT EXISTS chunks_doc ON chunks (doc_id, idx)',
   'CREATE INDEX IF NOT EXISTS terms_doc ON terms (doc_id)',
   'CREATE INDEX IF NOT EXISTS attempts_term ON attempts (term_id, ts)',

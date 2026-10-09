@@ -1,0 +1,188 @@
+import React from 'react';
+import { Image } from 'react-native';
+import { DarkTheme, NavigationContainer } from '@react-navigation/native';
+import {
+  createNativeStackNavigator,
+  type NativeStackScreenProps,
+} from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Gamepad2, House, Layers, User } from 'lucide-react-native';
+import { brand } from './theme';
+import { bridge, profile } from '../services/ai/llamaBridge';
+import { ocrAvailable, pickAndRead, snapAndRead } from '../services/ingest/ocr';
+import { fileImportAvailable, importNotesFile } from '../services/ingest/files';
+import { setCurrentDeck } from '../store/useDeckStore';
+import { HomeScreen } from '../screens/HomeScreen';
+import { DecksScreen } from '../screens/DecksScreen';
+import { GamesScreen } from '../screens/GamesScreen';
+import { ChatTutorScreen } from '../screens/ChatTutorScreen';
+import { images } from '../assets/images';
+import { ProgressScreen } from '../screens/ProgressScreen';
+import { IngestScreen } from '../screens/IngestScreen';
+import { CrosswordScreen } from '../screens/CrosswordScreen';
+import { WordscapeScreen } from '../screens/WordscapeScreen';
+import { DailyTermScreen } from '../screens/DailyTermScreen';
+import { AskNotesScreen } from '../screens/AskNotesScreen';
+import { ProofPanelScreen } from '../screens/ProofPanelScreen';
+import { DevBenchScreen } from '../screens/DevBenchScreen';
+import { UiCheckScreen } from '../screens/UiCheckScreen';
+import { useDeckStore } from '../store/useDeckStore';
+
+export type RootStackParamList = {
+  Tabs: undefined;
+  Ingest: undefined;
+  Crossword: { docId: string };
+  Wordscape: { docId: string };
+  DailyTerm: { docId?: string };
+  Ask: undefined;
+  Proof: undefined;
+  DevBench: undefined;
+  UiCheck: undefined;
+};
+export type TabParamList = {
+  Home: undefined;
+  Decks: undefined;
+  Games: undefined;
+  Tutor: undefined;
+  Progress: undefined;
+};
+export type Props<T extends keyof RootStackParamList> = NativeStackScreenProps<
+  RootStackParamList,
+  T
+>;
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
+
+const navTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: brand.bg,
+    card: brand.bgDeep,
+    primary: brand.primary,
+  },
+};
+
+const icon =
+  (Icon: typeof House) =>
+  ({ color }: { color: string }) =>
+    <Icon color={color} size={22} />;
+
+function Tabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: brand.primary,
+        tabBarInactiveTintColor: brand.textDim,
+        tabBarStyle: {
+          backgroundColor: brand.bgDeep,
+          borderTopColor: brand.border,
+        },
+        tabBarLabelStyle: { fontSize: 11 },
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarIcon: icon(House) }}
+      />
+      <Tab.Screen
+        name="Decks"
+        component={DecksScreen}
+        options={{ tabBarIcon: icon(Layers) }}
+      />
+      <Tab.Screen
+        name="Games"
+        component={GamesScreen}
+        options={{ tabBarIcon: icon(Gamepad2) }}
+      />
+      <Tab.Screen
+        name="Tutor"
+        component={ChatTutorScreen}
+        options={{ tabBarIcon: robotIcon }}
+      />
+      <Tab.Screen
+        name="Progress"
+        component={ProgressScreen}
+        options={{ tabBarIcon: icon(User) }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+function robotIcon({ focused }: { focused: boolean }) {
+  return (
+    <Image
+      source={images.mascot}
+      resizeMode="contain"
+      style={{ width: 30, height: 30, opacity: focused ? 1 : 0.65 }}
+    />
+  );
+}
+
+function Ingest({ navigation }: Props<'Ingest'>) {
+  return (
+    <IngestScreen
+      bridge={bridge}
+      profile={profile}
+      onBack={() => navigation.goBack()}
+      onPlay={docId => {
+        setCurrentDeck(docId);
+        navigation.replace('Wordscape', { docId });
+      }}
+      onDailyPlay={docId => {
+        setCurrentDeck(docId);
+        navigation.replace('DailyTerm', { docId });
+      }}
+      snapPage={ocrAvailable() ? snapAndRead : undefined}
+      pickPage={ocrAvailable() ? pickAndRead : undefined}
+      pickFile={fileImportAvailable() ? importNotesFile : undefined}
+    />
+  );
+}
+
+function Ask({ navigation }: Props<'Ask'>) {
+  const docId = useDeckStore(s => s.currentDocId);
+  return (
+    <AskNotesScreen
+      bridge={bridge}
+      docId={docId ?? undefined}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+export default function Navigation() {
+  return (
+    <NavigationContainer theme={navTheme}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Tabs" component={Tabs} />
+        <Stack.Screen name="Ingest" component={Ingest} />
+        <Stack.Screen name="Crossword" component={CrosswordScreen} />
+        <Stack.Screen name="Wordscape" component={WordscapeScreen} />
+        <Stack.Screen name="DailyTerm" component={DailyTermScreen} />
+        <Stack.Screen name="Ask" component={Ask} />
+        <Stack.Screen name="Proof">
+          {({ navigation }: Props<'Proof'>) => (
+            <ProofPanelScreen onBack={() => navigation.goBack()} />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="DevBench">
+          {({ navigation }: Props<'DevBench'>) => (
+            <DevBenchScreen
+              onBack={() => navigation.goBack()}
+              onUiCheck={() => navigation.navigate('UiCheck')}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="UiCheck">
+          {({ navigation }: Props<'UiCheck'>) => (
+            <UiCheckScreen onBack={() => navigation.goBack()} />
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}

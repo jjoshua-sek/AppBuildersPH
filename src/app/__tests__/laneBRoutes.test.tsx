@@ -13,11 +13,12 @@ const { act } = ReactTestRenderer;
 let root: ReactTestRenderer.ReactTestRenderer;
 const all = (id: string) => root.root.findAll(n => n.props.testID === id);
 const byId = (id: string): ReactTestInstance => all(id)[0];
-const button = (title: string) =>
+/** The pressable that wraps the given label. */
+const tile = (label: string) =>
   root.root.find(
     n =>
-      n.props.accessibilityRole === 'button' &&
-      n.findAll(t => t.props.children === title).length > 0,
+      typeof n.props.onPress === 'function' &&
+      n.findAll(t => t.props.children === label).length > 0,
   );
 
 beforeEach(async () => {
@@ -41,15 +42,17 @@ it('opens the decks database at start', () => {
   expect(JSON.stringify(root.toJSON())).toContain('No notes yet');
 });
 
-it('goes Home → Add notes → Back', async () => {
-  await act(async () => button('📸 Add notes').props.onPress());
-  expect(all('notes').length).toBeGreaterThan(0);
+it('goes Home → Scan Notes → Back', async () => {
+  await act(async () => tile('Scan Notes').props.onPress());
+  expect(all('review').length).toBeGreaterThan(0);
   expect(all('snap')).toHaveLength(0); // no OCR native module under Jest
   await act(async () => byId('back').props.onPress());
-  expect(all('notes')).toHaveLength(0);
+  expect(all('review')).toHaveLength(0);
   expect(all('deck').length).toBeGreaterThan(0);
 });
 
-it('keeps Ask my notes disabled until a deck exists', () => {
-  expect(button('🔎 Ask my notes').props.disabled).toBe(true);
+it('keeps Ask my notes disabled until a deck exists', async () => {
+  await act(async () => tile('Ask my notes').props.onPress());
+  expect(all('review')).toHaveLength(0);
+  expect(JSON.stringify(root.toJSON())).not.toContain('Finds the part of your notes');
 });

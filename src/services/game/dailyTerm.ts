@@ -18,7 +18,8 @@ export function scoreGuess(guess: string, answer: string): Mark[] {
 }
 
 /** Any A–Z guess of the right length counts; course terms are not in word lists. */
-export const isValidGuess = (g: string, len: number) => new RegExp(`^[A-Z]{${len}}$`).test(g);
+export const isValidGuess = (g: string, len: number) =>
+  new RegExp(`^[A-Z]{${len}}$`).test(g);
 
 export const MAX_GUESSES = 6;
 export const MISSES_BEFORE_TUTOR = 3;
@@ -31,8 +32,11 @@ export const MISSES_BEFORE_TUTOR = 3;
 export const PICK_DAILY_SQL = `
 SELECT t.*, SUM(CASE WHEN a.correct = 0 THEN 1 ELSE 0 END) AS misses, MAX(a.ts) AS last_seen
 FROM terms t LEFT JOIN attempts a ON a.term_id = t.id AND a.ts > ?
-WHERE t.doc_id = ? AND length(t.answer) BETWEEN 4 AND 10
+WHERE t.doc_id = ? AND length(t.answer) BETWEEN 3 AND 16
 GROUP BY t.id ORDER BY misses DESC, last_seen ASC NULLS FIRST LIMIT 1`;
 
 /** Local date key, e.g. "2026-10-09". */
-export const todayKey = (d = new Date()) => d.toLocaleDateString('en-CA');
+export const todayKey = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;

@@ -45,8 +45,10 @@ const labelOf = (id: string) =>
     .map(n => [n.props.children].flat().join(''))
     .join('');
 
+/** The title and notes fields live in the "Check the text" dialog, so open it unless told not to. */
 async function render(
   props: Partial<React.ComponentProps<typeof IngestScreen>> = {},
+  openReview = true,
 ) {
   const onPlay = jest.fn();
   await act(async () => {
@@ -60,6 +62,7 @@ async function render(
       />,
     );
   });
+  if (openReview) await act(async () => byId('review').props.onPress());
   return onPlay;
 }
 
@@ -249,4 +252,40 @@ describe('progressLine', () => {
       progressLine('done', { ...p, chunk: 3, failedChunks: 1, selected: 6 }),
     ).toBe('Done · 4 terms found, 6 in your puzzle · 1 chunk skipped');
   });
+});
+
+it('keeps the editor out of the screen until Check the text is tapped', async () => {
+  await render({}, false);
+  expect(has('notes')).toBe(false);
+  expect(has('title')).toBe(false);
+  await act(async () => byId('review').props.onPress());
+  expect(has('notes')).toBe(true);
+  expect(has('title')).toBe(true);
+});
+
+it('keeps typed text when the dialog is closed and reopened, and shows the word count', async () => {
+  await render({}, false);
+  await act(async () => byId('review').props.onPress());
+  await act(async () => byId('notes').props.onChangeText('one two three'));
+  await act(async () => byId('review-done').props.onPress());
+  await act(async () => byId('review').props.onPress());
+  expect(byId('notes').props.value).toBe('one two three');
+  expect(textOf('word-count')).toBe('3 words');
+});
+
+it('makes the fields read-only while reading', async () => {
+  const fast = bridge();
+  const slow: AiBridge = {
+    ...fast,
+    embed: t => new Promise(r => setTimeout(() => r(fast.embed(t)), 1)),
+  };
+  await render({ bridge: slow });
+  await act(async () => byId('sample').props.onPress());
+  await act(async () => {
+    byId('generate').props.onPress();
+  });
+  expect(byId('notes').props.editable).toBe(false);
+  expect(byId('title').props.editable).toBe(false);
+  await act(async () => byId('stop').props.onPress());
+  await until(() => deckStore.getState().status === 'done');
 });
