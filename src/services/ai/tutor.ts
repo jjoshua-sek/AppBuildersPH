@@ -59,10 +59,23 @@ export function wrongGuess(msg: string, answer: string): string | null {
   return words.join(' ');
 }
 
-// A reply that presents something as "the answer" (even a wrong one) reads as giving it away.
+// A reply that presents something as "the answer" (even a wrong one) reads as giving it away:
+// "Answer:", "the answer is", "ang sagot ay", or naming a word as the term ('recall the term "NADPH"').
 const ANSWER_CLAIM =
-  /\b(?:the|correct|right|final)\s+answer\s+is\b|\banswer\s*\**\s*:|\bsagot\s*(?:ay\b|:)/i;
+  /\b(?:the|correct|right|final)\s+answer\s+is\b|\banswer\s*\**\s*:|\bsagot\s*(?:ay\b|:)|\bterm\s*\**\s*["“'‘]\s*[A-Za-z]/i;
 export const claimsAnswer = (text: string) => ANSWER_CLAIM.test(text);
+
+// Praise the model may add even when told the guess is wrong ("That's a good start!").
+const PRAISE =
+  /\b(?:good|great|nice|excellent|awesome)\s+(?:start|job|guess|try|thinking|idea|work)\b|\byou'?re\s+(?:right|correct|on the right track)\b|\bthat'?s\s+(?:right|correct|it)\b|\b(?:correct|exactly|tama|galing)\b/i;
+
+/** Drops sentences that praise the student; used after a wrong guess. */
+export const dropPraise = (text: string) =>
+  text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .filter(sentence => !PRAISE.test(sentence))
+    .join(' ')
+    .trim();
 
 /** Small models add markdown; the chat shows plain text. */
 export const plainText = (text: string) =>
@@ -118,7 +131,11 @@ export async function askTutor(
     ...history.slice(-4),
     { role: 'user', content: studentMsg },
   ];
-  const show = (s: string) => ui.setText(plainText(s));
+  // After a wrong guess the app gives the verdict itself; the 1B model may still praise it.
+  const verdict = guess ? `Not quite, "${guess}" isn't it. ` : '';
+  const polish = (s: string) =>
+    guess ? dropPraise(plainText(s)) : plainText(s).trim();
+  const show = (s: string) => ui.setText(verdict + polish(s));
 
   for (let attempt = 0; attempt < 2; attempt++) {
     ui.setStatus(attempt ? 'Let me rephrase that…' : 'Thinking…');
@@ -142,7 +159,7 @@ export async function askTutor(
         if (guard.leaked) bridge.stopGeneration();
       },
     });
-    const reply = plainText(text).trim();
+    const reply = polish(text);
     if (
       reply &&
       !claimed &&
@@ -150,16 +167,14 @@ export async function askTutor(
       !guard.leaked &&
       !leaks(text, term.term)
     ) {
-      ui.setText(reply);
+      ui.setText(verdict + reply);
       ui.setStatus('');
-      return reply;
+      return verdict + reply;
     }
     ui.setText('');
   }
 
-  const fb =
-    (guess ? `Not quite, "${guess}" isn't it. ` : '') +
-    fallbackHint(term, masked);
+  const fb = verdict + fallbackHint(term, masked);
   ui.setText(fb);
   ui.setStatus('');
   return fb;

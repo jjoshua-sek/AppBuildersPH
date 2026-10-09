@@ -4,6 +4,7 @@ import {
   claimsAnswer,
   fallbackHint,
   messageSolves,
+  dropPraise,
   plainText,
   wrongGuess,
 } from '../tutor';
@@ -148,6 +149,11 @@ describe('claimsAnswer', () => {
     ['Ang sagot ay ATP.', true],
     ['What do your notes say the auditor reviews?', false],
     ['Your answer is close! What else is checked?', false],
+    [
+      "Okay, let's see if you can recall the term “NADPH” from the notes.",
+      true,
+    ],
+    ['What term in your notes describes the check?', false],
   ])('%s -> %s', (text, expected) => {
     expect(claimsAnswer(text)).toBe(expected);
   });
@@ -209,5 +215,51 @@ describe('askTutor replies', () => {
     const out = await askTutor(bridge, term, passage, 'help', [], u.ui);
     expect(out).toBe('Hmm, who checks the evidence?');
     expect(u.shown.every(s => !s.includes('*'))).toBe(true);
+  });
+});
+
+test('dropPraise removes praise sentences only', () => {
+  expect(
+    dropPraise(
+      "The reactions happen in the thylakoids. That's a good start! What do your notes say comes next?",
+    ),
+  ).toBe(
+    'The reactions happen in the thylakoids. What do your notes say comes next?',
+  );
+});
+
+describe('wrong guesses get the verdict from the app', () => {
+  test('the reply starts with "Not quite" and the praise is removed', async () => {
+    const { bridge } = scripted([
+      "That's a good start! Which records get checked in your notes?",
+    ]);
+    const u = ui();
+    const out = await askTutor(bridge, term, passage, 'Atp', [], u.ui);
+    expect(out).toBe(
+      'Not quite, "ATP" isn\'t it. Which records get checked in your notes?',
+    );
+    expect(u.shown.some(s => /good start/i.test(s))).toBe(false);
+  });
+
+  test('a reply that is only praise is retried', async () => {
+    const { bridge } = scripted([
+      'Great job! Exactly.',
+      'Who checks the evidence?',
+    ]);
+    const out = await askTutor(bridge, term, passage, 'Atp', [], ui().ui);
+    expect(out).toBe('Not quite, "ATP" isn\'t it. Who checks the evidence?');
+  });
+
+  test('a question (not a guess) keeps its wording', async () => {
+    const { bridge } = scripted(['Good thinking! Who checks the evidence?']);
+    const out = await askTutor(
+      bridge,
+      term,
+      passage,
+      'Pa-hint po',
+      [],
+      ui().ui,
+    );
+    expect(out).toBe('Good thinking! Who checks the evidence?');
   });
 });
