@@ -9,10 +9,7 @@
 
 ## How I tested it
 - [ ] `npx tsc --noEmit && npm run lint && npm test`
-- [ ] On a phone (which ones?):
-  - [ ] iPhone 13 Pro Max
-  - [ ] iPhone 11
-  - [ ] Infinix Hot 50 Pro+
+- [ ] On the Infinix Hot 50 Pro+
 - [ ] In airplane mode (if it touches the AI loop)
 
 ## Screenshots / numbers

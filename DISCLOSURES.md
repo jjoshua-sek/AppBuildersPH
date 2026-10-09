@@ -9,7 +9,7 @@ Everything Backpack Tutor uses, as the hackathon rules require. Lines marked **T
 | LLM | Gemma 3 1B IT | F16 file from [`ggml-org/gemma-3-1b-it-GGUF`](https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF), quantized by us with `llama-quantize --pure ... Q4_0` | GGUF Q4_0, 569 MB | [Gemma Terms of Use](https://ai.google.dev/gemma/terms) |
 | Embeddings | snowflake-arctic-embed-xs | [`ChristianAzinn/snowflake-arctic-embed-xs-gguf`](https://huggingface.co/ChristianAzinn/snowflake-arctic-embed-xs-gguf) | GGUF Q8_0 | Apache-2.0 |
 | OCR (Android) | Google ML Kit Text Recognition v2, Latin, **bundled** in the app (`com.google.mlkit:text-recognition:16.0.1`) | Google Maven | built in | [ML Kit Terms](https://developers.google.com/ml-kit/terms) |
-| OCR (iOS) | Apple Vision (`VNRecognizeTextRequest`) | iOS SDK | built in | Apple SDK license |
+| OCR (iOS, code only; no iOS build is shipped) | Apple Vision (`VNRecognizeTextRequest`) | iOS SDK | built in | Apple SDK license |
 
 Model file checksums (`scripts/push-models.sh` prints them when it pushes the models):
 
@@ -23,7 +23,7 @@ Why this model: [`docs/benchmarks.md`](docs/benchmarks.md).
 ## Runtime
 
 - **llama.rn 0.12.9** (MIT), the React Native binding for **llama.cpp** (MIT). It runs the LLM and the embedder.
-- CPU on the Infinix Hot 50 Pro+ (2 threads) and the iPhone 11; Metal GPU on the iPhone 13 Pro Max.
+- CPU on the Infinix Hot 50 Pro+ (2 threads), our only demo phone.
 
 ## Cloud APIs at runtime
 
