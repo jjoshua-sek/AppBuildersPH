@@ -1,0 +1,13 @@
+Chapter 4: Access Control
+
+Access control decides who may use a system and what they may do inside it. It has three steps. Identification is the user claiming an identity, usually with a username. Authentication proves that claim. Authorization then grants the specific rights that identity is allowed.
+
+Authentication relies on factors: something you know, such as a password; something you have, such as a phone or token; and something you are, such as a fingerprint. Multifactor authentication combines two or more different factors, so a stolen password alone is not enough to log in.
+
+Good access design follows the principle of least privilege. Each user receives only the permissions needed for their job and nothing more. When an employee changes roles, old rights should be removed; otherwise privileges pile up over time, a problem called privilege creep.
+
+Many organizations manage rights through role-based access control. Permissions are attached to roles, such as cashier or payroll clerk, and users are assigned to roles instead of receiving permissions one by one. This makes reviews faster and reduces mistakes.
+
+Some accounts are more dangerous than others. Administrator accounts can change settings, create users and erase logs, so they need extra protection, separate passwords and close monitoring.
+
+Auditors test access control by comparing the list of active accounts with the list of current employees. Accounts that belong to people who have left, known as orphaned accounts, should be disabled immediately. Auditors also review the password policy, the lockout setting after failed attempts, and whether managers perform a periodic recertification, where each manager confirms that their staff still need the access they have.

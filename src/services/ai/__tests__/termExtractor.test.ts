@@ -1,5 +1,6 @@
 import { createMockBridge } from '../mockBridge';
-import { extractTerms, rejectReason, validateTerms } from '../termExtractor';
+import { extractTerms, MAX_ANSWER, rejectReason, validateTerms } from '../termExtractor';
+import { termSystem } from '../prompts';
 import { parseWhy, generateWhy } from '../whyItMatters';
 
 const passage =
@@ -84,5 +85,19 @@ describe('rejectReason', () => {
     ['ISO 27001', 'A standard for managing information security.', 'not letters only'],
   ])('%s -> %s', (term, clue, reason) => {
     expect(rejectReason(term, clue, passage)).toBe(reason);
+  });
+});
+
+describe('term prompt', () => {
+  test('states the same letter limit the validator enforces', () => {
+    expect(termSystem(4)).toContain(`at most ${MAX_ANSWER} letters`);
+  });
+
+  test("its worked example passes the app's own validator", () => {
+    const sys = termSystem(4);
+    const examplePassage = sys.match(/Example passage: (.*)/)![1];
+    const exampleAnswer = sys.match(/Example answer: (.*)/)![1];
+    const kept = validateTerms(exampleAnswer, examplePassage, 'ex');
+    expect(kept.map(t => t.answer)).toEqual(['FIREWALL', 'SEGREGATION']);
   });
 });

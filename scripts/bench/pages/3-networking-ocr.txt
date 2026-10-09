@@ -1,0 +1,32 @@
+NETWORK FUNDAMENTALS                                      Module 2
+
+2.1 How Data Moves
+
+A network connects devices so they can share data. Every device needs an ad-
+dress. An IP address identifies a device on a network, while a MAC address is
+burned into the network card by its maker.
+
+Data does not travel as one large file. It is split into small units called
+packets. Each packet carries the source and destination address, so a router
+can forward it toward its goal. A router connects different networks and
+chooses the path; a switch connects devices inside the same local network.
+
+Most traffic uses TCP, a protocol that guarantees delivery by numbering pack-
+ets and resending any that are lost. UDP is faster but gives no guarantee, so
+it suits video calls and online games, where a late packet is useless anyway.
+
+People remember names, not numbers. DNS translates a name such as a school
+website into the IP address that computers use. If DNS fails, websites seem
+"down" even though the servers are running.
+
+2.2 Protecting the Network
+
+A firewall filters traffic using rules, allowing or blocking packets based on
+address, port and protocol. Companies often place public servers in a DMZ, a
+separate zone between the internet and the internal network, so an attack on
+a web server does not reach internal systems directly.
+
+Remote staff connect through a VPN, which creates an encrypted tunnel across
+the public internet. Bandwidth is the amount of data a link can carry per sec-
+ond, while latency is the delay before data arrives.
+                                                                   - 14 -

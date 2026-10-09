@@ -76,3 +76,4 @@ yarn-error.log
 
 # Models are pushed to devices, never committed
 *.gguf
+scripts/bench/out/
