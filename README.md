@@ -27,7 +27,7 @@ Backpack Tutor puts the AI **on the phone itself**:
 5. 💡 After you solve a term, a **"why it matters" card** explains it
 6. 📅 A **Daily Term** brings back the words you missed most
 
-## · Why Local AI?
+## ✨ Why Local AI?
 
 | | |
 |---|---|
@@ -114,7 +114,7 @@ Why this model: see [`docs/benchmarks.md`](docs/benchmarks.md).
 
 ---
 
-## → Getting Started
+## 🚀 Getting Started
 
 > Full step-by-step guide, including Windows fixes and iOS: **[`docs/RUNTIME_SETUP.md`](docs/RUNTIME_SETUP.md)**.
 
@@ -214,7 +214,7 @@ AppBuildersPH/
 
 ---
 
-## ▪ Benchmarks
+## 📊 Benchmarks
 
 Measured on the **Infinix Hot 50 Pro+** (CPU, 2 threads, Gemma 3 1B Q4_0). Details in [`docs/benchmarks.md`](docs/benchmarks.md).
 
