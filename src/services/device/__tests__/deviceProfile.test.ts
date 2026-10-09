@@ -5,7 +5,6 @@ test.each([
   ['ios', 'iPhone12,1', 'ios-cpu'], // iPhone 11 (A13)
   ['ios', 'iPhone13,2', 'ios-metal'], // iPhone 12 (A14), first Apple7 GPU
   ['android', 'X6880', 'android-cpu'], // Infinix Hot 50 Pro+
-  ['android', 'LG7n', 'android-cpu'], // Tecno Pova 4
   ['ios', 'unknown', 'ios-cpu'],
 ])('%s %s -> %s', (os, id, tier) => {
   expect(detectTier(os, id)).toBe(tier);

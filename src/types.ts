@@ -31,7 +31,7 @@ export interface AiBridge {
 export type DeviceTier =
   | 'ios-metal' // iPhone 13 Pro Max (A15): Metal GPU
   | 'ios-cpu' // iPhone 11 (A13): CPU only, 4 GB RAM
-  | 'android-cpu'; // Infinix Hot 50 Pro+ / Tecno Pova 4 (Helio G100/G99): CPU only
+  | 'android-cpu'; // Infinix Hot 50 Pro+ (Helio G100): CPU only
 
 /** Lane B writes these; lanes C and D read them. */
 export type TermRow = {
