@@ -1,5 +1,12 @@
 import type { AiBridge, TermRow } from '../../../types';
-import { askTutor, messageSolves, fallbackHint } from '../tutor';
+import {
+  askTutor,
+  claimsAnswer,
+  fallbackHint,
+  messageSolves,
+  plainText,
+  wrongGuess,
+} from '../tutor';
 
 const term: TermRow = {
   id: 't1',
@@ -11,7 +18,8 @@ const term: TermRow = {
   description: null,
   why: null,
 };
-const passage = 'An audit is an independent check. The auditor reviews evidence.';
+const passage =
+  'An audit is an independent check. The auditor reviews evidence.';
 
 /** Bridge that streams the given replies, one per call. */
 function scripted(replies: string[]) {
@@ -77,7 +85,9 @@ describe('askTutor', () => {
   });
 
   test('the model never sees the term', async () => {
-    const { bridge, seen } = scripted(['What happens to the records in your notes?']);
+    const { bridge, seen } = scripted([
+      'What happens to the records in your notes?',
+    ]);
     await askTutor(bridge, term, passage, 'help', [], ui().ui);
     expect(seen[0].toLowerCase()).not.toMatch(/audit/);
   });
@@ -95,7 +105,10 @@ describe('askTutor', () => {
   });
 
   test('falls back to a template hint after two leaks', async () => {
-    const { bridge } = scripted(['It is audit, obviously, my friend', 'Spelled A-U-D-I-T']);
+    const { bridge } = scripted([
+      'It is audit, obviously, my friend',
+      'Spelled A-U-D-I-T',
+    ]);
     const u = ui();
     const out = await askTutor(bridge, term, passage, 'just tell me', [], u.ui);
     expect(out).toMatch(/starts with "A" and has 5 letters/);
@@ -104,5 +117,97 @@ describe('askTutor', () => {
 });
 
 test('fallbackHint quotes the masked sentence', () => {
-  expect(fallbackHint(term, 'An _____ is a check. Other text.')).toContain('"An _____ is a check."');
+  expect(fallbackHint(term, 'An _____ is a check. Other text.')).toContain(
+    '"An _____ is a check."',
+  );
+});
+
+describe('wrongGuess', () => {
+  test.each([
+    ['Atp', 'AUDIT', 'ATP'],
+    ['is it NADH?', 'AUDIT', 'NADH'],
+    ['ATP ba?', 'AUDIT', 'ATP'],
+    ['light reactions yata po', 'AUDIT', 'LIGHT REACTIONS'],
+    ['Pa-hint po', 'AUDIT', null],
+    ['Give me a hint', 'AUDIT', null],
+    ["I'm stuck", 'AUDIT', null],
+    ['what does the passage say?', 'AUDIT', null],
+    ['hindi ko alam', 'AUDIT', null],
+    ['ok thanks', 'AUDIT', null],
+    ['is it audit?', 'AUDIT', null], // that solves it
+    ['the records are checked by someone outside the company', 'AUDIT', null],
+  ])('%s / %s -> %s', (msg, answer, expected) => {
+    expect(wrongGuess(msg, answer)).toBe(expected);
+  });
+});
+
+describe('claimsAnswer', () => {
+  test.each([
+    ['**Answer:** The Krebs cycle', true],
+    ['The answer is the Krebs cycle.', true],
+    ['Ang sagot ay ATP.', true],
+    ['What do your notes say the auditor reviews?', false],
+    ['Your answer is close! What else is checked?', false],
+  ])('%s -> %s', (text, expected) => {
+    expect(claimsAnswer(text)).toBe(expected);
+  });
+});
+
+test('plainText removes markdown', () => {
+  expect(plainText('**Hmm**, think about *this*:\n- the `records`')).toBe(
+    'Hmm, think about this:\nthe records',
+  );
+});
+
+describe('askTutor replies', () => {
+  test('tells the model when the student guessed wrong', async () => {
+    const { bridge, seen } = scripted(['Not quite! Who reviews the evidence?']);
+    await askTutor(bridge, term, passage, 'Atp', [], ui().ui);
+    expect(seen[0]).toContain(
+      'The student just guessed "ATP". That is NOT the hidden term.',
+    );
+  });
+
+  test('a normal question does not mention a guess', async () => {
+    const { bridge, seen } = scripted(['Who reviews the evidence?']);
+    await askTutor(bridge, term, passage, 'Pa-hint po', [], ui().ui);
+    expect(seen[0]).not.toContain('just guessed');
+  });
+
+  test('a reply that claims an answer is retried', async () => {
+    const { bridge, stops } = scripted([
+      "Hmm! **Answer:** The Krebs cycle. Let's see!",
+      'Who reviews the evidence in your notes?',
+    ]);
+    const u = ui();
+    const out = await askTutor(bridge, term, passage, 'Pa-hint po', [], u.ui);
+    expect(stops()).toBe(1);
+    expect(out).toBe('Who reviews the evidence in your notes?');
+    expect(u.shown.some(s => /Answer:/.test(s))).toBe(false);
+  });
+
+  test('two answer claims after a wrong guess fall back to a template that says so', async () => {
+    const { bridge } = scripted([
+      'Great start! **Answer:** ATP/GTP',
+      'The answer is the Krebs cycle.',
+    ]);
+    const out = await askTutor(bridge, term, passage, 'Atp', [], ui().ui);
+    expect(out).toMatch(
+      /^Not quite, "ATP" isn't it\. Here's a nudge: it starts with "A"/,
+    );
+  });
+
+  test('an empty reply is retried, then falls back', async () => {
+    const { bridge } = scripted(['', '   ']);
+    const out = await askTutor(bridge, term, passage, 'help', [], ui().ui);
+    expect(out).toMatch(/starts with "A" and has 5 letters/);
+  });
+
+  test('markdown is stripped from what the student sees', async () => {
+    const { bridge } = scripted(['**Hmm**, who checks the *evidence*?']);
+    const u = ui();
+    const out = await askTutor(bridge, term, passage, 'help', [], u.ui);
+    expect(out).toBe('Hmm, who checks the evidence?');
+    expect(u.shown.every(s => !s.includes('*'))).toBe(true);
+  });
 });
