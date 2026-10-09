@@ -13,7 +13,6 @@
   - [ ] iPhone 13 Pro Max
   - [ ] iPhone 11
   - [ ] Infinix Hot 50 Pro+
-  - [ ] Tecno Pova 4
 - [ ] In airplane mode (if it touches the AI loop)
 
 ## Screenshots / numbers

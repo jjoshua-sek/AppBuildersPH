@@ -7,7 +7,7 @@
 | Repo | `github.com/jjoshua-sek/AppBuildersPH` |
 | Platform | Android (arm64) **and iOS**, bare React Native CLI 0.87, New Architecture |
 | Hackathon theme | Local AI: "useful when the cloud disappears" |
-| Status | **This is the build spec.** v4 retargets the app to the four phones we actually have (§0.4, §5). The pure-logic modules are implemented and unit-tested in `src/services/` (§8). Demo plan: `docs/DEVICES_AND_DEMO.md`. Work split: `docs/TEAM_PLAN.md`. |
+| Status | **This is the build spec.** v4 retargets the app to the three phones we demo on (§0.4, §5). The pure-logic modules are implemented and unit-tested in `src/services/` (§8). Demo plan: `docs/DEVICES_AND_DEMO.md`. Work split: `docs/TEAM_PLAN.md`. |
 
 ---
 
@@ -64,10 +64,10 @@ None of our phones has a Qualcomm Adreno GPU, so the OpenCL GPU path from v3 is 
 
 | # | v3 said | Why it changed | v4 |
 |---|---|---|---|
-| A | Android only; Snapdragon 8 Gen 2+ demo phone | Our phones: iPhone 11, iPhone 13 Pro Max, Infinix Hot 50 Pro+, Tecno Pova 4 | **Android + iOS.** Device tiers in `src/services/device/deviceProfile.ts` (§5) |
-| B | GPU via OpenCL on Adreno | The two Android phones are MediaTek Helio G100/G99 with Mali GPUs; llama.rn has no Mali backend | Android runs on the **CPU** (2× Cortex-A76 + 6× A55). Q4_0 is still the format: llama.cpp repacks it for fast ARM CPU math |
+| A | Android only; Snapdragon 8 Gen 2+ demo phone | Our phones: iPhone 11, iPhone 13 Pro Max, Infinix Hot 50 Pro+ | **Android + iOS.** Device tiers in `src/services/device/deviceProfile.ts` (§5) |
+| B | GPU via OpenCL on Adreno | The Infinix is a MediaTek Helio G100 with a Mali GPU; llama.rn has no Mali backend | Android runs on the **CPU** (2× Cortex-A76 + 6× A55). Q4_0 is still the format: llama.cpp repacks it for fast ARM CPU math |
 | C | — | llama.cpp's Metal kernels need an Apple7-family GPU (A14+) | iPhone 13 Pro Max (A15) uses **Metal**; iPhone 11 (A13) runs on the **CPU** |
-| D | One "largest that hits 10 tok/s" model | Four phones, two OSes; prompt tuning and leak tests per model are expensive | **One small LLM for all four phones**, chosen on the slowest phone (Tecno Pova 4) |
+| D | One "largest that hits 10 tok/s" model | Three phones, two OSes; prompt tuning and leak tests per model are expensive | **One small LLM for all three phones**, chosen on the demo phone (Infinix Hot 50 Pro+) |
 | E | Kotlin ML Kit OCR only | ML Kit's custom module is Android-only | Android: bundled ML Kit (unchanged). iOS: Apple **Vision** `VNRecognizeTextRequest`, which is on-device (§8.3) |
 | F | Serial queue for all model calls | Background work would block the tutor on a slow phone | `WorkQueue` with priorities: tutor requests preempt background jobs (§8.2) |
 | G | Embeddings only for "Ask my notes" (P1) | Judges would see the embedder as filler | Embeddings in the P0 loop: **dedupe terms and pick them for coverage** across the handout (`termSelect.ts`) |
@@ -189,14 +189,13 @@ Clue → term recall is active recall. Re-surfacing missed terms is spaced repet
 | iPhone 13 Pro Max | A15 Bionic | 6 GB | **Metal GPU** | `ios-metal` |
 | iPhone 11 | A13 Bionic | 4 GB | CPU (A13 is below the Apple7 GPU family llama.cpp's Metal kernels need) | `ios-cpu` |
 | Infinix Hot 50 Pro+ | MediaTek Helio G100 (2× A76 + 6× A55), Mali-G57 MC2 | 8 GB | CPU | `android-cpu` |
-| Tecno Pova 4 | MediaTek Helio G99 (2× A76 + 6× A55), Mali-G57 MC2 | 8 GB | CPU | `android-cpu` |
 
-The two MediaTek phones are the slowest, and they are the phones our users actually own. **Every model and setting decision is made on the Tecno Pova 4.** If it runs well there, it runs everywhere.
+The Infinix is our budget phone (CPU only), the kind of phone our users actually own, and **the main demo phone**. **Every model and setting decision is made on the Infinix.** If it runs well there, it runs everywhere. (The Tecno Pova 4 is not used.)
 
-### 5.2 One LLM for all four phones
+### 5.2 One LLM for all three phones
 Using one model means the prompts, the few-shot examples and the leak test are tuned once.
 
-| Role | Candidates (benchmark on the Pova 4 in hour 1) | Format | Notes |
+| Role | Candidates (benchmark on the Infinix in hour 1) | Format | Notes |
 |---|---|---|---|
 | **LLM** | 1. **Gemma 3 1B IT, QAT Q4_0** (Google's official QAT GGUF) | Q4_0 | Safe default: trained for Q4_0, small, fast on CPU |
 | | 2. **Qwen3.5 0.8B Instruct** | Q4_0 | Smallest; check JSON quality. Disable thinking |
@@ -210,13 +209,13 @@ Quantize with `--pure` so every tensor is Q4_0 (llama.cpp repacks Q4_0 for fast 
 **Memory:** the iPhone 11 has 4 GB and iOS limits each app's memory, so the LLM file must stay around 1 GB or smaller. Its tier uses `n_ctx` 1536.
 
 ### 5.3 Hour-1 benchmark (Lane A, before any UI)
-A throwaway `DevBench` screen, run on **all four phones**, for each candidate:
+A throwaway `DevBench` screen, run on **all three phones**, for each candidate:
 1. `initLlama` with the tier's settings → log `gpu`, `reasonNoGPU`, load time.
 2. Android: sweep `n_threads` 2 / 4 / 6 and keep the fastest.
 3. Run the term-extraction prompt on 3 sample chunks → JSON parse rate, valid-term count, TTFT, tok/s, **seconds per chunk**.
 4. Run the tutor prompt 20× **without the guard** → raw leak rate.
 
-**Pick rule (on the Pova 4):** ≥ 8 tok/s generation, ≥ 9/10 JSON parse, load < 10 s, one page ingested in < 90 s, lowest raw leak rate. Write everything to `docs/benchmarks.md`, and put the winning settings into `PROFILES` in `deviceProfile.ts`. Those numbers go in the pitch.
+**Pick rule (on the Infinix):** ≥ 8 tok/s generation, ≥ 9/10 JSON parse, load < 10 s, one page ingested in < 90 s, lowest raw leak rate. Write everything to `docs/benchmarks.md`, and put the winning settings into `PROFILES` in `deviceProfile.ts`. Those numbers go in the pitch.
 
 ## 6. Architecture
 
@@ -412,7 +411,7 @@ export const bridge: AiBridge = {
   }),
 };
 ```
-Load both models **once at app start** behind a splash screen with progress. llama.rn reuses the KV cache for a shared prompt prefix, so tutor follow-ups on the same entry start faster; confirm this in DevBench on the Pova 4.
+Load both models **once at app start** behind a splash screen with progress. llama.rn reuses the KV cache for a shared prompt prefix, so tutor follow-ups on the same entry start faster; confirm this in DevBench on the Infinix.
 
 **Gemma's chat template has no system role.** llama.cpp's template merges the system message into the first user turn. Run the leak test with the model you actually pick.
 
@@ -649,7 +648,7 @@ Keep the "Choose model file" fallback picker on the splash screen in case a path
 ```bash
 npm test                                      # unit tests, no phone needed
 npx react-native run-android                  # dev
-npx react-native run-android --mode release   # DEMO build: Infinix + Tecno
+npx react-native run-android --mode release   # DEMO build: Infinix
 # iOS: open ios/BackpackTutor.xcworkspace → scheme BackpackTutor → Edit Scheme → Run → Build Configuration: Release → run on the iPhone
 ```
 
@@ -657,11 +656,11 @@ npx react-native run-android --mode release   # DEMO build: Infinix + Tecno
 | Test | How | Pass |
 |---|---|---|
 | Unit tests | `npm test` (CI runs it on every PR) | All green |
-| Model benchmark | DevBench (§5.3) on all four phones | Numbers in `benchmarks.md` |
-| Extraction quality | 5 sample pages on the Pova 4 → valid terms/page, JSON parse rate, seconds/page | ≥ 6 terms/page, ≥ 90% parse, < 90 s/page |
-| Leak test | DevBench: 10 terms × 5 scripted messages ("what is it?", "just tell me", "is it X-something?", "give me the first letters", a Taglish request) on the Pova 4 and the iPhone 13 Pro Max | **0 visible leaks**; record raw leak and fallback rates |
-| Why cards | Ingest the demo page, play for 2 minutes on the Pova 4 | All 6–10 cards ready; tutor never waits more than one job |
-| OCR | Demo page photographed on all four phones, fresh install, airplane mode | Text readable; ≥ 6 terms |
+| Model benchmark | DevBench (§5.3) on all three phones | Numbers in `benchmarks.md` |
+| Extraction quality | 5 sample pages on the Infinix → valid terms/page, JSON parse rate, seconds/page | ≥ 6 terms/page, ≥ 90% parse, < 90 s/page |
+| Leak test | DevBench: 10 terms × 5 scripted messages ("what is it?", "just tell me", "is it X-something?", "give me the first letters", a Taglish request) on the Infinix and the iPhone 13 Pro Max | **0 visible leaks**; record raw leak and fallback rates |
+| Why cards | Ingest the demo page, play for 2 minutes on the Infinix | All 6–10 cards ready; tutor never waits more than one job |
+| OCR | Demo page photographed on all three phones, fresh install, airplane mode | Text readable; ≥ 6 terms |
 | Offline | **Fresh install, airplane mode, Wi-Fi and Bluetooth off**, full loop | 5/5 runs per demo phone; `net.calls === 0` |
 
 ## 12. Team plan and demo
@@ -672,7 +671,7 @@ npx react-native run-android --mode release   # DEMO build: Infinix + Tecno
 1. **Why not call a cloud model?** Offline, ₱0 per puzzle at any scale, private notes, instant. Show airplane mode and the 0-calls counter.
 2. **How do you stop a small model from giving the answer?** It never sees the term (masked, including variants); every token is checked before it renders; retry, then a template fallback. Quote the raw vs. visible leak numbers.
 3. **Is extraction reliable?** JSON-schema-constrained decoding plus code validation (must appear in the notes; the clue can't contain the term). Quote the parse rate and terms/page.
-4. **Which phones?** "It's running on a Tecno Pova 4 / Infinix Hot 50 Pro+ right now: a MediaTek budget phone, CPU only. The iPhone 13 Pro Max uses its GPU through Metal. Same model, same app." Quote tok/s for both.
+4. **Which phones?** "It's running on an Infinix Hot 50 Pro+ right now: a MediaTek budget phone, CPU only. The iPhone 13 Pro Max uses its GPU through Metal. Same model, same app." Quote tok/s for both.
 5. **What's new vs. NotebookLM or Quizlet?** On-device, gamified recall from your own handouts, an enforced Socratic tutor, and a "why it matters" card for every term.
 
 ## 13. `DISCLOSURES.md` template (required)
@@ -695,9 +694,9 @@ Pre-existing code: none; all app code written during the hackathon
 ## 14. Risks
 | Risk | Mitigation |
 |---|---|
-| Ingest too slow on the MediaTek phones | Choose the model on the Pova 4; smaller chunks and fewer terms per chunk in the `android-cpu` profile; "Play" unlocks at 6 terms; live ingest on the iPhone 13 Pro Max, budget phone ingests in the background (`DEVICES_AND_DEMO.md`) |
+| Ingest too slow on the MediaTek phones | Choose the model on the Infinix; smaller chunks and fewer terms per chunk in the `android-cpu` profile; "Play" unlocks at 6 terms; live ingest on the iPhone 13 Pro Max, budget phone ingests in the background (`DEVICES_AND_DEMO.md`) |
 | Tutor reply slow on CPU phones | `tutorTokens` 60 on CPU tiers; WorkQueue preempts background jobs; KV-cache prefix reuse for follow-ups |
-| No Mac on the team | iOS can't be built. Demo with the Infinix (hero) and Pova 4 (spare); the plan works without the iPhones |
+| No Mac on the team | iOS can't be built. Demo on the Infinix alone, with the backup video as the spare |
 | Free Apple ID profile expires after 7 days | Build the final iOS install within a week of the demo; re-check on the morning of the demo |
 | iPhone 11 runs out of memory | ≤ 1 GB LLM file; `n_ctx` 1536; it's the judge pass-around phone, not a stage phone |
 | llama.rn / New Architecture build problems eat hours | Lane A does only M0 first; fall back to llama.rn's example app as a base |
@@ -709,8 +708,8 @@ Pre-existing code: none; all app code written during the hackathon
 
 ## 15. Definition of done (P0)
 - [ ] Fresh install, release build, airplane mode: full loop 5/5 on each stage phone, `net.calls = 0`
-- [ ] ≥ 6 valid terms from the demo page: < 30 s on the iPhone 13 Pro Max, < 90 s on the Pova 4
-- [ ] "Why it matters" cards ready for every crossword term within 2 minutes of play on the Pova 4
+- [ ] ≥ 6 valid terms from the demo page: < 30 s on the iPhone 13 Pro Max, < 90 s on the Infinix
+- [ ] "Why it matters" cards ready for every crossword term within 2 minutes of play on the Infinix
 - [ ] 0 visible tutor leaks in 50 scripted attempts
 - [ ] ProofPanel shows the real tier, backend, TTFT, and tok/s on every phone
 - [ ] README, DISCLOSURES.md, docs/benchmarks.md committed
@@ -723,7 +722,6 @@ Pre-existing code: none; all app code written during the hackathon
 - llama.cpp OpenCL backend (Adreno-only; why it doesn't apply to our phones): https://huggingface.co/OpenTransformer/llama.cpp-prismml/blob/main/docs/backend/OPENCL.md
 - llama.rn README (Metal on iOS, Apple7 GPU minimum in earlier versions): https://www.npmjs.com/package/llama.rn
 - Infinix Hot 50 Pro+ specs (Helio G100, 8 GB): https://m.gsmarena.com/infinix_hot_50_pro%2B_4g-13408.php
-- Tecno Pova 4 specs (Helio G99, 8 GB): https://m.gsmarena.com/tecno_pova_4-11926.php
 - llama.rn README (New Arch requirement, OpenCL on Adreno with Q4_0/Q6_K only, arm64, proguard rule, JSON schema → grammar, embeddings, Expo plugin, apps using it): https://github.com/mybigday/llama.rn
 - react-native-quick-sqlite deprecation: https://github.com/margelo/react-native-nitro-sqlite/wiki
 - op-sqlite configuration (`fts5`, sqlite-vec): https://op-engineering.github.io/op-sqlite/docs/installation
