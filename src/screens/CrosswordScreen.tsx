@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -43,6 +43,8 @@ export function CrosswordScreen({ route }: Props<'Crossword'>) {
   const [terms, setTerms] = useState<TermRow[]>([]);
   const [solved, setSolved] = useState<Set<string>>(new Set());
   const [hints, setHints] = useState<Record<string, number>>({});
+  // Tutor replies per term; added to the letter reveals in hints_used.
+  const tutorHints = useRef<Record<string, number>>({});
   const [misses, setMisses] = useState<Record<string, number>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<'A' | 'D'>('A');
@@ -101,7 +103,7 @@ export function CrosswordScreen({ route }: Props<'Crossword'>) {
       term_id: selected.id,
       mode: 'crossword',
       correct: ok ? 1 : 0,
-      hints_used: hints[selected.id] ?? 0,
+      hints_used: (hints[selected.id] ?? 0) + (tutorHints.current[selected.id] ?? 0),
       ts: Date.now(),
     }).catch(() => {});
     setGuess('');
@@ -327,13 +329,18 @@ export function CrosswordScreen({ route }: Props<'Crossword'>) {
           term={selected}
           visible={tutorOpen}
           onClose={() => setTutorOpen(false)}
+          onHint={() => {
+            tutorHints.current[selected.id] =
+              (tutorHints.current[selected.id] ?? 0) + 1;
+          }}
           onSolved={() => {
             setTutorOpen(false);
             logAttempt({
               term_id: selected.id,
               mode: 'crossword',
               correct: 1,
-              hints_used: hints[selected.id] ?? 0,
+              hints_used:
+                (hints[selected.id] ?? 0) + (tutorHints.current[selected.id] ?? 0),
               ts: Date.now(),
             }).catch(() => {});
             markSolved(selected);

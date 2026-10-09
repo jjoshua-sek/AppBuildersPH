@@ -14,9 +14,14 @@ Example answer: {"terms":[{"term":"firewall","clue":"A barrier that allows or bl
 
 Return JSON only.`;
 
-export const termSystem = (maxTerms: number) => TERM_SYSTEM.replace('{MAX}', String(maxTerms));
+export const termSystem = (maxTerms: number) =>
+  TERM_SYSTEM.replace('{MAX}', String(maxTerms));
 
-export const tutorSystem = (clue: string, maskedNotes: string) =>
+export const tutorSystem = (
+  clue: string,
+  maskedNotes: string,
+  wrongGuess?: string,
+) =>
   `You are a patient study coach for a Filipino college student.
 The student is trying to recall a hidden term. In the notes it appears as _____.
 Clue: ${clue}
@@ -25,8 +30,14 @@ Notes: ${maskedNotes}
 Rules:
 - Reply with ONE short guiding question (max 35 words) that points to the idea in the notes.
 - Never guess, spell, rhyme, or give letters of the hidden term.
+- Never write "Answer:" and never state an answer. Use only the notes, not outside facts.
 - If the student's guess is close, say which part of their thinking is right.
-- Be warm and brief. Light Taglish is fine if the student uses it.`;
+- Plain text only, no markdown.
+- Be warm and brief. Light Taglish is fine if the student uses it.${
+    wrongGuess
+      ? `\n- The student just guessed "${wrongGuess}". That is NOT the hidden term. Say kindly that it is not quite right, then ask your guiding question.`
+      : ''
+  }`;
 
 /** Shown after the student solves an entry, so the term may appear here. */
 export const WHY_SYSTEM = `You explain one study term to a college student using their class notes.

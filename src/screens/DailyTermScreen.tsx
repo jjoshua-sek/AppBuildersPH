@@ -48,6 +48,7 @@ export function DailyTermScreen({ route }: Props<'DailyTerm'>) {
   const submitting = useRef(false);
   const answerInput = useRef<React.ComponentRef<typeof TextInput>>(null);
   const roundDate = useRef(new Date());
+  const tutorHints = useRef(0); // tutor replies this round, logged as hints_used
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [term, setTerm] = useState<TermRow | null>(null);
@@ -131,7 +132,7 @@ export function DailyTermScreen({ route }: Props<'DailyTerm'>) {
           term_id: term.id,
           mode: 'daily',
           correct: current === answer ? 1 : 0,
-          hints_used: 0,
+          hints_used: tutorHints.current,
           ts: Date.now(),
         });
       } catch (error) {
@@ -335,6 +336,9 @@ export function DailyTermScreen({ route }: Props<'DailyTerm'>) {
           term={term}
           visible={tutorOpen}
           onClose={() => setTutorOpen(false)}
+          onHint={() => {
+            tutorHints.current += 1;
+          }}
           onSolved={async () => {
             setTutorOpen(false);
             try {
@@ -344,7 +348,7 @@ export function DailyTermScreen({ route }: Props<'DailyTerm'>) {
                 term_id: term.id,
                 mode: 'daily',
                 correct: 1,
-                hints_used: 0,
+                hints_used: tutorHints.current,
                 ts: Date.now(),
               });
             } catch {
