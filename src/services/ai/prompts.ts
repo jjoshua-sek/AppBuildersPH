@@ -2,7 +2,9 @@ export const TERM_SYSTEM = `You pick crossword answers from a student's class no
 From the passage, choose up to {MAX} key terms a student must know for an exam.
 Pick terms the passage defines or explains, not everyday words.
 Rules:
-- Copy each term exactly as written in the passage.
+- Take each term from the passage. The notes may come from a phone photo with typos
+  (like "thylakolds" or "oompounds"); always write the term with its correct spelling.
+- A term is a noun or a name (like "chloroplast" or "Calvin cycle"), never an action like "uses water".
 - A term is one word, or two short words, with at most 15 letters. Skip longer phrases and words.
 - For each term, write a clue: one sentence of 6 to 15 words that defines it, based on the passage.
 - The clue must NOT contain the term or any form of it. Never start a clue with "The passage".

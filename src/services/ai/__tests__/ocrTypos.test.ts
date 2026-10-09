@@ -12,17 +12,27 @@ These oompounds provide the energy to build energy-oontaining sugars`;
 
 describe('terms the model spells correctly but OCR got wrong', () => {
   test.each([
-    ['thylakoid', 'Flattened sacs inside the chloroplast where light is captured.'],
+    [
+      'thylakoid',
+      'Flattened sacs inside the chloroplast where light is captured.',
+    ],
     ['molecules', 'Small units of matter that carry electrons in the cell.'],
-    ['compounds', 'Substances that provide energy to build sugars in the cell.'],
+    [
+      'compounds',
+      'Substances that provide energy to build sugars in the cell.',
+    ],
   ])('%s is accepted as in the notes', (term, clue) => {
     expect(rejectReason(term, clue, OCR)).toBeNull();
   });
 
   test('words that are really absent are still rejected', () => {
-    expect(rejectReason('mitochondria', 'The organelle that releases energy from food.', OCR)).toBe(
-      'not in the notes',
-    );
+    expect(
+      rejectReason(
+        'mitochondria',
+        'The organelle that releases energy from food.',
+        OCR,
+      ),
+    ).toBe('not in the notes');
   });
 });
 
@@ -34,7 +44,9 @@ describe('the tutor never sees or shows the misspelled answer', () => {
   });
 
   test('a reply containing the OCR spelling counts as a leak', () => {
-    expect(leaks('Look at the thylakold membrane in your notes.', 'thylakoid')).toBe(true);
+    expect(
+      leaks('Look at the thylakold membrane in your notes.', 'thylakoid'),
+    ).toBe(true);
   });
 });
 
@@ -46,5 +58,34 @@ describe('typo matching stays strict for short and unrelated words', () => {
     ['photosynthesis', 'photosyntesis happens here', true],
   ])('%s in "%s" -> %s', (term, text, expected) => {
     expect(fuzzySpans(text, term).length > 0).toBe(expected);
+  });
+});
+
+describe('the extraction prompt and validator handle photo text', () => {
+  test('action phrases are not terms', () => {
+    expect(
+      rejectReason(
+        'Uses water',
+        'What the light-dependent reactions take in to make oxygen.',
+        OCR + ' Uses water',
+      ),
+    ).toBe('an action, not a term');
+    expect(
+      rejectReason(
+        'Produces oxygen',
+        'What the light reactions release as a by-product.',
+        OCR + ' Produces oxygen',
+      ),
+    ).toBe('an action, not a term');
+  });
+
+  test('a correctly spelled term is accepted even when the photo misspelled it', () => {
+    expect(
+      rejectReason(
+        'compounds',
+        'Substances combined to build sugars in the cell.',
+        OCR,
+      ),
+    ).toBeNull();
   });
 });
