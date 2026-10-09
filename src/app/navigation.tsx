@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { AppState, Image } from 'react-native';
+import { AppState } from 'react-native';
 import {
   createNavigationContainerRef,
   DarkTheme,
@@ -20,8 +20,6 @@ import { setCurrentDeck } from '../store/useDeckStore';
 import { HomeScreen } from '../screens/HomeScreen';
 import { DecksScreen } from '../screens/DecksScreen';
 import { GamesScreen } from '../screens/GamesScreen';
-import { ChatTutorScreen } from '../screens/ChatTutorScreen';
-import { images } from '../assets/images';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { IngestScreen } from '../screens/IngestScreen';
 import { CrosswordScreen } from '../screens/CrosswordScreen';
@@ -51,7 +49,6 @@ export type TabParamList = {
   Home: undefined;
   Decks: undefined;
   Games: undefined;
-  Tutor: undefined;
   Progress: undefined;
 };
 export type Props<T extends keyof RootStackParamList> = NativeStackScreenProps<
@@ -108,26 +105,11 @@ function Tabs() {
         options={{ tabBarIcon: icon(Gamepad2) }}
       />
       <Tab.Screen
-        name="Tutor"
-        component={ChatTutorScreen}
-        options={{ tabBarIcon: robotIcon }}
-      />
-      <Tab.Screen
         name="Progress"
         component={ProgressScreen}
         options={{ tabBarIcon: icon(User) }}
       />
     </Tab.Navigator>
-  );
-}
-
-function robotIcon({ focused }: { focused: boolean }) {
-  return (
-    <Image
-      source={images.mascot}
-      resizeMode="contain"
-      style={{ width: 30, height: 30, opacity: focused ? 1 : 0.65 }}
-    />
   );
 }
 

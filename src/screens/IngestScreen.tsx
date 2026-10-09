@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -20,7 +20,7 @@ import { Screen } from '../components/ui';
 import { ReviewNotesDialog } from '../components/ReviewNotesDialog';
 import { SAMPLE_TEXT, SAMPLE_TITLE } from '../assets/sample';
 import type { Profile } from '../services/device/deviceProfile';
-import type { Progress } from '../services/ingest/pipeline';
+import { MIN_TERMS_TO_PLAY, type Progress } from '../services/ingest/pipeline';
 import type { AiBridge } from '../types';
 import {
   cancelIngest,
@@ -58,7 +58,12 @@ export function progressLine(
     Progress,
     'chunk' | 'total' | 'found' | 'selected' | 'failedChunks' | 'cancelled'
   > | null,
+  error: string | null = null,
 ): string {
+  if (status === 'error')
+    return `Could not generate study games: ${
+      error || 'Please try again.'
+    } Your notes are still here. Retry or add another page.`;
   if (status === 'reading') {
     return p
       ? `Reading chunk ${Math.min(p.chunk + 1, p.total)}/${p.total} · ${plural(
@@ -67,16 +72,20 @@ export function progressLine(
         )} found`
       : 'Reading chunk 1…';
   }
-  if (status !== 'done' || !p) return '';
+  if (status !== 'done') return '';
+  if (!p) return 'No game was generated. Retry or add more notes.';
   const head = p.cancelled
     ? `Stopped after ${p.chunk}/${p.total} chunks`
     : 'Done';
   const skipped = p.failedChunks
     ? ` · ${plural(p.failedChunks, 'chunk')} skipped`
     : '';
-  return p.found > 0
+  return p.found >= MIN_TERMS_TO_PLAY
     ? `${head} · ${plural(p.found, 'term')} ready for Wordscape${skipped}`
-    : `${head} · no terms found${skipped}. Add more notes or snap another page.`;
+    : `${head} · ${plural(
+        p.found,
+        'usable term',
+      )} found${skipped}. At least ${MIN_TERMS_TO_PLAY} terms are needed to play. Add more notes or snap another page, then generate again.`;
 }
 
 export function IngestScreen({
@@ -103,10 +112,24 @@ export function IngestScreen({
   const [snapError, setSnapError] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const reading = status === 'reading';
   const words = wordCount(text);
   const canGenerate = !reading && !snapping && words >= MIN_WORDS;
+  const playEnabled =
+    status === 'done' &&
+    !snapping &&
+    !!docId &&
+    (progress?.found ?? 0) >= MIN_TERMS_TO_PLAY;
+
+  useEffect(() => {
+    if (status === 'idle') return;
+    const frame = requestAnimationFrame(() =>
+      scroll.current?.scrollToEnd({ animated: true }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [status]);
 
   const edit = (t: string) => {
     setText(t);
@@ -141,6 +164,7 @@ export function IngestScreen({
   };
 
   const generate = async () => {
+    if (!canGenerate) return;
     setStopping(false);
     await startIngest(bridge, profile, {
       title: title.trim() || `Notes ${new Date().toLocaleDateString('en-CA')}`,
@@ -154,12 +178,13 @@ export function IngestScreen({
     cancelIngest();
   };
 
-  const fraction = progress ? progress.chunk / progress.total : 0;
+  const fraction = progress?.total ? progress.chunk / progress.total : 0;
 
   return (
     <View style={styles.fill}>
       <Screen>
         <ScrollView
+          ref={scroll}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
@@ -266,46 +291,50 @@ export function IngestScreen({
           ) : (
             <Btn
               testID="generate"
-              label="Generate study games"
+              label={status === 'error' ? 'Try again' : 'Generate study games'}
               onPress={generate}
               disabled={!canGenerate}
             />
           )}
 
-          {(reading || progress) && (
+          {status !== 'idle' && (
             <View style={styles.progress} testID="progress">
               <View style={styles.row}>
                 {reading && <ActivityIndicator color={colors.teal} />}
                 <Text
                   style={[styles.text, styles.shrink]}
                   testID="progress-line"
+                  accessibilityLiveRegion="polite"
                 >
-                  {progressLine(status, progress)}
+                  {progressLine(status, progress, error)}
                 </Text>
               </View>
-              <View style={styles.track}>
-                <View style={[styles.bar, { width: `${fraction * 100}%` }]} />
-              </View>
+              {status === 'error' && (
+                <Text style={[styles.text, styles.danger]} testID="error">
+                  Generation failed. Tap Try again, or Check the text to edit
+                  your notes.
+                </Text>
+              )}
+              {reading && (
+                <View style={styles.track}>
+                  <View style={[styles.bar, { width: `${fraction * 100}%` }]} />
+                </View>
+              )}
             </View>
-          )}
-          {status === 'error' && (
-            <Text style={[styles.text, styles.danger]} testID="error">
-              Something went wrong: {error}
-            </Text>
           )}
 
           <Btn
             testID="play"
             label="Play Wordscape"
             onPress={() => docId && onPlay(docId)}
-            disabled={reading || snapping || !docId || !progress?.found}
+            disabled={!playEnabled}
           />
           {onDailyPlay && (
             <Btn
               testID="play-daily"
               label="Play Daily Term"
               onPress={() => docId && onDailyPlay(docId)}
-              disabled={!docId || !progress?.found || snapping}
+              disabled={!playEnabled}
               kind="quiet"
             />
           )}

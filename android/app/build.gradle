@@ -85,6 +85,18 @@ android {
         versionCode 1
         versionName "1.0"
         manifestPlaceholders += [appAuthRedirectScheme: "com.backpacktutor"]
+        externalNativeBuild {
+            cmake {
+                // Hash long generated object paths before they exceed Ninja's Windows limit.
+                arguments "-DCMAKE_OBJECT_PATH_MAX=250"
+            }
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            // Leave room for codegen target directories in long Windows checkouts.
+            buildStagingDirectory file("../../../.cxx")
+        }
     }
     signingConfigs {
         debug {
