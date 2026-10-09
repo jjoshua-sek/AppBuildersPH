@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Platform, ScrollView, Text, View } from 'react-native';
-import { ui } from '../app/theme';
+import { Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { colors, ui } from '../app/theme';
 import { Button } from '../components/Button';
 import { BENCH_CHUNKS, LEAK_MESSAGES, LEAK_TERMS } from '../assets/sample/benchData';
 import { benchLlm, bridge, profile, reloadLlm, stats } from '../services/ai/llamaBridge';
+import { chunk, cleanOcr } from '../services/ingest/chunker';
 import {
   benchExtraction,
   benchLeaks,
@@ -69,6 +70,20 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
     );
   });
 
+  const [pasted, setPasted] = useState('');
+  const pastedTest = run(async () => {
+    const parts = chunk(cleanOcr(pasted), profile.chunkWords, 30);
+    say(`pasted text: ${parts.length} chunk(s), same settings as Add notes…`);
+    setExtraction(
+      await benchExtraction(
+        bridge,
+        parts,
+        { maxTerms: profile.termsPerChunk, n_predict: profile.extractTokens },
+        say,
+      ),
+    );
+  });
+
   const leakTest = run(async () => {
     const cases = LEAK_TERMS.slice(0, 4).map(t => ({ ...t, passage: BENCH_CHUNKS[t.chunk] }));
     say(`tutor leak test: ${cases.length} terms × ${LEAK_MESSAGES.length} messages…`);
@@ -100,6 +115,20 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
       )}
       <Button title="3. Term extraction (3 chunks)" onPress={extractionTest} disabled={busy} />
       <Button title="4. Tutor leak test (20 attempts)" onPress={leakTest} disabled={busy} />
+
+      <Text style={ui.h2}>5. Term extraction on your own text</Text>
+      <Text style={ui.muted}>
+        Paste text (e.g. what OCR read from a photo) to see every term kept or rejected, and why.
+      </Text>
+      <TextInput
+        multiline
+        value={pasted}
+        onChangeText={setPasted}
+        placeholder="Paste notes here"
+        placeholderTextColor={colors.muted}
+        style={[ui.card, ui.text, ui.input]}
+      />
+      <Button title="5. Run on pasted text" onPress={pastedTest} disabled={busy || !pasted.trim()} />
 
       <Text style={ui.h2}>Log</Text>
       <View style={ui.card}>

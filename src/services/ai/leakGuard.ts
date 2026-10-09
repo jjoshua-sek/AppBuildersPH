@@ -12,6 +12,8 @@
  * - Spelled-out answers are caught: "A-U-D-I-T", "a u d i t", "a. u. d. i. t".
  * - Single-word terms of 7+ letters also match on their stem, so
  *   "authentication" catches "authenticate".
+ * - OCR typos: words of 6+ letters match with one wrong/missing/extra letter
+ *   (10+ letters: two), so "thylakoid" matches the photo's "thylakolds".
  */
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -40,17 +42,71 @@ export function termPatterns(term: string): RegExp[] {
   return patterns;
 }
 
+/** Edit distance, stopping early once it exceeds `max`. */
+function editDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      rowMin = Math.min(rowMin, cur[j]);
+    }
+    if (rowMin > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/** Typos allowed for a term word: none under 6 letters (so "audit" ≠ "audio"). */
+const typoBudget = (w: string) => (w.length >= 10 ? 2 : w.length >= 6 ? 1 : 0);
+
+/** A text word matches a term word exactly, with a suffix, or within the typo budget. */
+function wordMatches(token: string, w: string): boolean {
+  if (token === w || (w.length >= 4 && token.startsWith(w))) return true;
+  const k = typoBudget(w);
+  if (!k) return false;
+  // Compare whole words and also the word's start, so "thylakolds" (plural + typo) matches "thylakoid".
+  return editDistance(w, token, k) <= k || editDistance(w, token.slice(0, w.length), k) <= k;
+}
+
+/** Character ranges where the term appears with OCR-style typos. */
+export function fuzzySpans(text: string, term: string): [number, number][] {
+  const words = wordsOf(term);
+  if (!words.length || !words.some(w => typoBudget(w) > 0)) return [];
+  const tokens = [...text.matchAll(/[a-z]+/gi)].map(m => ({
+    w: m[0].toLowerCase(),
+    start: m.index ?? 0,
+    end: (m.index ?? 0) + m[0].length,
+  }));
+  const spans: [number, number][] = [];
+  for (let i = 0; i + words.length <= tokens.length; i++) {
+    if (words.every((w, j) => wordMatches(tokens[i + j].w, w))) {
+      spans.push([tokens[i].start, tokens[i + words.length - 1].end]);
+      i += words.length - 1;
+    }
+  }
+  return spans;
+}
+
 export function leaks(text: string, term: string): boolean {
-  return termPatterns(term).some(p => {
-    p.lastIndex = 0;
-    return p.test(text);
-  });
+  return (
+    termPatterns(term).some(p => {
+      p.lastIndex = 0;
+      return p.test(text);
+    }) || fuzzySpans(text, term).length > 0
+  );
 }
 
 export const MASK = '_____';
 
 export function maskTerm(passage: string, term: string): string {
-  return termPatterns(term).reduce((out, p) => out.replace(p, MASK), passage);
+  const exact = termPatterns(term).reduce((out, p) => out.replace(p, MASK), passage);
+  // Then the OCR-typo forms, right to left so earlier ranges stay valid.
+  return fuzzySpans(exact, term)
+    .reverse()
+    .reduce((out, [a, b]) => out.slice(0, a) + MASK + out.slice(b), exact);
 }
 
 /**
