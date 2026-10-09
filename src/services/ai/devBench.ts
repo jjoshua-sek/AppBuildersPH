@@ -4,6 +4,7 @@ import { tutorSystem } from './prompts';
 import { termSchema, validateTerms } from './termExtractor';
 import { termSystem } from './prompts';
 import { askTutor } from './tutor';
+import { parseJsonObject } from './modelJson';
 
 export type ExtractionResult = {
   chunks: number;
@@ -35,16 +36,16 @@ export async function benchExtraction(
     });
     const ms = Date.now() - t0;
     totalMs += ms;
-    let ok = true;
-    try {
-      JSON.parse(raw);
-    } catch {
-      ok = false;
-    }
+    const ok = Array.isArray(parseJsonObject(raw)?.terms);
     const terms = validateTerms(raw, chunks[i], `bench:${i}`);
     parsed += ok ? 1 : 0;
     validTerms += terms.length;
     log(`chunk ${i + 1}: ${ok ? 'JSON ok' : 'JSON FAILED'}, ${terms.length} valid terms, ${(ms / 1000).toFixed(1)} s`);
+    if (!ok || !terms.length) {
+      // Show what the model actually wrote, so a failure can be diagnosed from the phone.
+      const flat = raw.replace(/\s+/g, ' ');
+      log(`  raw (${raw.length} chars): ${flat.slice(0, 160)}${flat.length > 160 ? ` … ${flat.slice(-80)}` : ''}`);
+    }
   }
   return {
     chunks: chunks.length,

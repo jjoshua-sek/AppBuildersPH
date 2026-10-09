@@ -31,7 +31,7 @@ export const PROFILES: Record<DeviceTier, Profile> = {
     n_ctx: 2048,
     chunkWords: 180,
     termsPerChunk: 5,
-    extractTokens: 220,
+    extractTokens: 360,
     tutorTokens: 90,
     whyTokens: 140,
   },
@@ -42,18 +42,18 @@ export const PROFILES: Record<DeviceTier, Profile> = {
     n_ctx: 1536, // stay well under iOS's per-app memory limit on a 4 GB phone
     chunkWords: 150,
     termsPerChunk: 4,
-    extractTokens: 180,
+    extractTokens: 320,
     tutorTokens: 60,
     whyTokens: 110,
   },
   'android-cpu': {
     tier: 'android-cpu',
     n_gpu_layers: 0,
-    n_threads: 4, // DevBench sweeps 2/4/6; the 2 A76 cores do most of the work
+    n_threads: 2, // DevBench on the Infinix: 2 threads 12.2 tok/s, 4 → 11.2, 6 → 11.0
     n_ctx: 2048,
     chunkWords: 150,
     termsPerChunk: 4,
-    extractTokens: 180,
+    extractTokens: 320, // 180 cut the JSON off mid-term (DevBench: 0/3 parsed)
     tutorTokens: 60,
     whyTokens: 110,
   },
