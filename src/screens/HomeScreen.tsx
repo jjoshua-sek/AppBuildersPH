@@ -54,6 +54,13 @@ export function HomeScreen({ go }: { go(r: Route): void }) {
           </View>
         </View>
       )}
+      {current && (
+        <Button
+          title="🧠 Quiz"
+          onPress={() => go('quiz')}
+          disabled={current.terms < 2}
+        />
+      )}
       <Button title="📸 Add notes" onPress={() => go('ingest')} />
       <Button
         title="🔎 Ask my notes"

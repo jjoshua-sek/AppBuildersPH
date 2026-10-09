@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { colors, ui } from '../app/theme';
+import { answerFromNotes, type NotesAnswer } from '../services/rag/answer';
 import { searchNotes, type NoteHit } from '../services/rag/retrieve';
 import { useDeckStore } from '../store/useDeckStore';
 import type { AiBridge } from '../types';
@@ -22,7 +23,8 @@ export type AskNotesScreenProps = {
 
 /**
  * "Ask my notes" (P1): type a question, get the passages from your own notes
- * that answer it, found by the on-device embedding model.
+ * that answer it (on-device embedding search), then a short written answer from
+ * the on-device LLM that cites the passage it used.
  */
 export function AskNotesScreen({ bridge, docId, onBack }: AskNotesScreenProps) {
   const c = colors;
@@ -32,18 +34,40 @@ export function AskNotesScreen({ bridge, docId, onBack }: AskNotesScreenProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState('');
+  const [answer, setAnswer] = useState<NotesAnswer | null>(null);
+  const [answering, setAnswering] = useState(false);
+  const [answerError, setAnswerError] = useState<string | null>(null);
 
   const search = async () => {
-    if (!query.trim() || busy) return;
+    if (!query.trim() || busy || answering) return;
     setBusy(true);
     setError(null);
+    setAnswer(null);
+    setAnswerText('');
+    setAnswerError(null);
+    let found: NoteHit[] = [];
     try {
-      setHits(await searchNotes(bridge, query, { docId, k: 3 }));
+      found = await searchNotes(bridge, query, { docId, k: 3 });
+      setHits(found);
       setOpen(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      return;
     } finally {
       setBusy(false);
+    }
+    if (!found.length) return;
+    // The passages show right away; the written answer streams in above them.
+    setAnswering(true);
+    try {
+      setAnswer(
+        await answerFromNotes(bridge, query, found, { onText: setAnswerText }),
+      );
+    } catch (e) {
+      setAnswerError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAnswering(false);
     }
   };
 
@@ -76,13 +100,13 @@ export function AskNotesScreen({ bridge, docId, onBack }: AskNotesScreenProps) {
       <Pressable
         testID="search"
         onPress={search}
-        disabled={busy || !query.trim()}
+        disabled={busy || answering || !query.trim()}
         accessibilityRole="button"
-        accessibilityState={{ disabled: busy || !query.trim() }}
+        accessibilityState={{ disabled: busy || answering || !query.trim() }}
         style={[
           styles.btn,
           { backgroundColor: c.accent },
-          (busy || !query.trim()) && styles.dim,
+          (busy || answering || !query.trim()) && styles.dim,
         ]}
       >
         {busy ? (
@@ -101,6 +125,46 @@ export function AskNotesScreen({ bridge, docId, onBack }: AskNotesScreenProps) {
         <Text testID="empty" style={[styles.note, { color: c.muted }]}>
           Nothing in your notes yet. Add a handout first.
         </Text>
+      )}
+
+      {(answering || answer || answerError) && (
+        <View
+          testID="answer"
+          style={[
+            styles.card,
+            { backgroundColor: c.card, borderColor: c.accent },
+          ]}
+        >
+          <View style={styles.row}>
+            <Text style={[styles.meta, { color: c.accent }]}>Answer</Text>
+            {answering && <ActivityIndicator color={c.accent} size="small" />}
+          </View>
+          {answerError ? (
+            <Text
+              testID="answer-error"
+              style={[styles.body, { color: c.danger }]}
+            >
+              Couldn't write an answer: {answerError}. The passages below are
+              still from your notes.
+            </Text>
+          ) : (
+            <Text testID="answer-text" style={[styles.body, { color: c.text }]}>
+              {answerText ||
+                (answering ? 'Writing an answer from your notes…' : '')}
+            </Text>
+          )}
+          {answer?.sources.map(src => (
+            <Pressable
+              key={src.chunkId}
+              testID={`source-${src.chunkId}`}
+              onPress={() => setOpen(src.chunkId)}
+            >
+              <Text style={[styles.meta, { color: c.accent }]}>
+                From: {titleOf(src.docId) ?? 'your notes'} · part {src.idx + 1}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       )}
 
       {hits?.map((h, i) => {
@@ -156,6 +220,7 @@ const styles = StyleSheet.create({
   dim: { opacity: 0.4 },
   ghost: { borderWidth: 1.5, borderColor: colors.accent },
   note: { fontSize: 14 },
+  row: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   card: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 6 },
   meta: { fontSize: 13 },
   body: { fontSize: 16, lineHeight: 22 },

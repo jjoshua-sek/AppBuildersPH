@@ -12,6 +12,7 @@ import { UiCheckScreen } from '../screens/UiCheckScreen';
 import { IngestScreen } from '../screens/IngestScreen';
 import { AskNotesScreen } from '../screens/AskNotesScreen';
 import { ReviewTermsScreen } from '../screens/ReviewTermsScreen';
+import { QuizScreen } from '../screens/QuizScreen';
 import { open } from '@op-engineering/op-sqlite';
 import { bridge, profile, stats } from '../services/ai/llamaBridge';
 import { ocrAvailable, pickAndRead, snapAndRead } from '../services/ingest/ocr';
@@ -57,6 +58,8 @@ export default function App() {
           <DevBenchScreen onBack={home} onUiCheck={() => setRoute('uicheck')} />
         ) : route === 'uicheck' ? (
           <UiCheckScreen onBack={() => setRoute('devbench')} />
+        ) : route === 'quiz' && currentDocId ? (
+          <QuizScreen bridge={bridge} docId={currentDocId} onBack={home} />
         ) : route === 'review' && currentDocId ? (
           <ReviewTermsScreen
             docId={currentDocId}

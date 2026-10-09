@@ -9,5 +9,6 @@ export type Route =
   | 'ingest'
   | 'addpage'
   | 'review'
+  | 'quiz'
   | 'ask'
   | 'uicheck';

@@ -200,6 +200,22 @@ export async function keywordChunkIds(
   return new Set(rows.map(r => String(r.chunk_id)));
 }
 
+/**
+ * Logs a quiz answer. Stored as an attempt with mode 'quiz', so quiz misses
+ * also feed the Daily Term pick. (Kept separate from logAttempt so the shared
+ * Attempt type in types.ts doesn't change.)
+ */
+export async function logQuizAnswer(a: {
+  term_id: string;
+  correct: boolean;
+  ts: number;
+}): Promise<void> {
+  await getDb().execute(
+    'INSERT INTO attempts (term_id, mode, correct, hints_used, ts) VALUES (?,?,?,?,?)',
+    [a.term_id, 'quiz', a.correct ? 1 : 0, 0, a.ts],
+  );
+}
+
 /* ---- Reviewing terms (the Review screen, via ingest/review.ts) ---- */
 
 export async function getTerm(id: string): Promise<TermRow | null> {
@@ -251,7 +267,9 @@ export async function getDocument(
     'SELECT id, title FROM documents WHERE id = ?',
     [id],
   );
-  return rows[0] ? { id: String(rows[0].id), title: String(rows[0].title) } : null;
+  return rows[0]
+    ? { id: String(rows[0].id), title: String(rows[0].title) }
+    : null;
 }
 
 /** The idx the next chunk of this document gets (0 for a new document). */
