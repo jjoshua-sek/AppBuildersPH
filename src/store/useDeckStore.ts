@@ -118,11 +118,13 @@ export function resetIngest() {
  * Reads the text into a new deck. Resolves when done; never rejects (errors land
  * in `status`/`error`). A second call while one is running joins the first.
  * When it finishes, the "why it matters" cards start filling in the background.
+ * With `appendTo`, the text becomes another page of that deck.
  */
 export function startIngest(
   bridge: AiBridge,
   profile: Profile,
   doc: { title: string; source: string; text: string },
+  opts: { appendTo?: string } = {},
 ): Promise<void> {
   if (running) return running;
   set({ status: 'reading', progress: null, error: null });
@@ -137,6 +139,7 @@ export function startIngest(
         doc,
         progress => set({ progress, currentDocId: progress.docId }),
         token,
+        opts,
       );
       // Always keep a terminal summary, including cancellation before the first chunk.
       set({

@@ -3,10 +3,13 @@ import { extractTerms, type ExtractedTerm } from '../ai/termExtractor';
 import { generateWhy } from '../ai/whyItMatters';
 import { uid } from '../db/client';
 import {
+  getDocument,
   getPendingWhy,
+  getTerms,
   insertChunk,
   insertDocument,
   insertTerm,
+  nextChunkIdx,
   saveWhy,
   setSelectedTerms,
 } from '../db/queries';
@@ -53,6 +56,11 @@ type Candidate = ExtractedTerm & {
  * chunk is counted in `failedChunks` and the rest still run (the chunk's text is
  * kept for the tutor); if every chunk fails, the first error is thrown. A chunk
  * whose output fails validation just yields no terms.
+ *
+ * With `appendTo`, the text is added to that deck as another page: its chunks
+ * continue the deck's numbering, answers already in the deck are skipped, and
+ * the crossword is re-selected across all pages. `found` then counts the whole
+ * deck. `doc.title` is ignored.
  */
 export async function ingest(
   bridge: AiBridge,
@@ -60,21 +68,44 @@ export async function ingest(
   doc: { title: string; source: string; text: string },
   onProgress: (x: Progress) => void = () => {},
   cancel: CancelToken = { cancelled: false },
+  opts: { appendTo?: string } = {},
 ): Promise<IngestResult> {
   const t0 = Date.now();
   const parts = chunk(doc.text, p.chunkWords, CHUNK_OVERLAP);
   if (!parts.length) throw new Error('No text to read');
 
-  const docId = uid();
-  await insertDocument({
-    id: docId,
-    title: doc.title,
-    source: doc.source,
-    created_at: t0,
-  });
-
   const cands: Candidate[] = [];
   const seen = new Set<string>(); // overlapping chunks often yield the same term twice
+  let docId: string;
+  let firstIdx = 0;
+  if (opts.appendTo) {
+    if (!(await getDocument(opts.appendTo))) throw new Error('Deck not found');
+    docId = opts.appendTo;
+    firstIdx = await nextChunkIdx(docId);
+    // Earlier pages' terms compete in the new selection; their vectors aren't stored, so re-embed.
+    for (const t of await getTerms(docId)) {
+      seen.add(t.answer);
+      cands.push({
+        term: t.term,
+        answer: t.answer,
+        clue: t.clue,
+        chunkId: t.chunk_id,
+        id: t.id,
+        chunkIdx: Number(t.chunk_id.slice(t.chunk_id.lastIndexOf(':') + 1)),
+        vec: await bridge
+          .embed(`${t.term}: ${t.clue}`)
+          .catch(() => new Float32Array(0)),
+      });
+    }
+  } else {
+    docId = uid();
+    await insertDocument({
+      id: docId,
+      title: doc.title,
+      source: doc.source,
+      created_at: t0,
+    });
+  }
   let progress: Progress = {
     docId,
     chunk: 0,
@@ -96,14 +127,15 @@ export async function ingest(
       progress.cancelled = true;
       break;
     }
-    const chunkId = `${docId}:${i}`;
+    const idx = firstIdx + i;
+    const chunkId = `${docId}:${idx}`;
     const text = parts[i];
     // Always save the chunk: the tutor needs its text even if the model failed on it.
     const embedding = await bridge.embed(text).catch(e => {
       fail(e);
       return null;
     });
-    await insertChunk({ id: chunkId, doc_id: docId, idx: i, text, embedding });
+    await insertChunk({ id: chunkId, doc_id: docId, idx, text, embedding });
 
     const found = embedding
       ? await extractTerms(bridge, chunkId, text, {
@@ -129,7 +161,7 @@ export async function ingest(
       cands.push({
         ...t,
         id,
-        chunkIdx: i,
+        chunkIdx: idx,
         // Only for near-duplicate checks; without it the term is still deduped by answer.
         vec: await bridge
           .embed(`${t.term}: ${t.clue}`)

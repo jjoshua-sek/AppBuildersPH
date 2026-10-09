@@ -14,6 +14,8 @@ import {
   CalendarCheck,
   Camera,
   ChevronRight,
+  FilePlus,
+  ListChecks,
   Grid3x3,
   Layers,
   Network,
@@ -256,6 +258,30 @@ export function HomeScreen() {
               <Text style={styles.shortcutText}>Ask my notes</Text>
             </Pressable>
           </View>
+          {current && !dbError && (
+            <View style={styles.shortcuts}>
+              <Pressable
+                testID="add-page"
+                style={styles.shortcut}
+                onPress={() =>
+                  nav.navigate('Ingest', { appendTo: current.id })
+                }
+              >
+                <FilePlus color="#C4CDFF" size={18} />
+                <Text style={styles.shortcutText}>Add a page</Text>
+              </Pressable>
+              <Pressable
+                testID="review-terms"
+                style={styles.shortcut}
+                onPress={() =>
+                  nav.navigate('ReviewTerms', { docId: current.id })
+                }
+              >
+                <ListChecks color="#C4CDFF" size={18} />
+                <Text style={styles.shortcutText}>Review terms</Text>
+              </Pressable>
+            </View>
+          )}
           <Pressable
             style={styles.shortcut}
             onPress={() => nav.navigate('SchoolPlanner')}

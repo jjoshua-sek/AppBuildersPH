@@ -43,6 +43,10 @@ export type IngestScreenProps = {
   /** Existing photo + OCR: pass `pickAndRead`. Safer on stage: a pre-tested page. */
   pickPage?: () => Promise<string>;
   pickFile?: () => Promise<string>;
+  /** Open in "add a page" mode for this deck instead of starting a new one. */
+  appendTo?: string;
+  /** Shows "Review terms" once a deck is read. */
+  onReview?: (docId: string) => void;
 };
 
 /** Thrown by ingest/ocr.ts when the student backs out of the camera or picker. */
@@ -97,8 +101,11 @@ export function IngestScreen({
   snapPage,
   pickPage,
   pickFile,
+  appendTo,
+  onReview,
 }: IngestScreenProps) {
   const status = useDeckStore(s => s.status);
+  const decks = useDeckStore(s => s.decks);
   const progress = useDeckStore(s => s.progress);
   const error = useDeckStore(s => s.error);
   const docId = useDeckStore(s => s.currentDocId);
@@ -112,16 +119,23 @@ export function IngestScreen({
   const [snapError, setSnapError] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // The deck this scan is added to as another page; null starts a new deck.
+  const [target, setTarget] = useState<string | null>(appendTo ?? null);
+  const targetDeck = decks.find(d => d.id === target);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const reading = status === 'reading';
   const words = wordCount(text);
   const canGenerate = !reading && !snapping && words >= MIN_WORDS;
+  const playDocId = docId ?? target;
   const playEnabled =
-    status === 'done' &&
-    !snapping &&
-    !!docId &&
-    (progress?.found ?? 0) >= MIN_TERMS_TO_PLAY;
+    (status === 'done' &&
+      !snapping &&
+      !!docId &&
+      (progress?.found ?? 0) >= MIN_TERMS_TO_PLAY) ||
+    // Adding a page to a deck that already plays: Play stays available before Generate.
+    (status === 'idle' && (targetDeck?.terms ?? 0) >= MIN_TERMS_TO_PLAY);
+  const done = status === 'done' && !!docId;
 
   useEffect(() => {
     if (status === 'idle') return;
@@ -166,11 +180,32 @@ export function IngestScreen({
   const generate = async () => {
     if (!canGenerate) return;
     setStopping(false);
-    await startIngest(bridge, profile, {
-      title: title.trim() || `Notes ${new Date().toLocaleDateString('en-CA')}`,
-      source,
-      text,
-    });
+    await startIngest(
+      bridge,
+      profile,
+      {
+        title:
+          title.trim() || `Notes ${new Date().toLocaleDateString('en-CA')}`,
+        source,
+        text,
+      },
+      target ? { appendTo: target } : {},
+    );
+  };
+
+  /** Next page of the deck just read: same deck, empty notes. */
+  const addPage = () => {
+    if (!docId) return;
+    setTarget(docId);
+    setText('');
+    setSource('paste');
+    setSnapError(null);
+    resetIngest();
+  };
+
+  const newDeck = () => {
+    setTarget(null);
+    resetIngest();
   };
 
   const stop = () => {
@@ -199,13 +234,22 @@ export function IngestScreen({
               <ArrowLeft color={colors.text} size={22} />
             </Pressable>
             <Text style={styles.title} accessibilityRole="header">
-              Scan Notes
+              {target ? 'Add a page' : 'Scan Notes'}
             </Text>
           </View>
-          <Text style={styles.muted}>
-            Add a handout or paste your notes. Everything is processed on this
-            phone.
-          </Text>
+          {target ? (
+            <Text style={styles.muted} testID="append-target">
+              to {targetDeck?.title ?? 'this deck'}
+              {targetDeck
+                ? ` · ${plural(targetDeck.terms, 'term')} so far`
+                : ''}
+            </Text>
+          ) : (
+            <Text style={styles.muted}>
+              Add a handout or paste your notes. Everything is processed on this
+              phone.
+            </Text>
+          )}
 
           <View style={styles.group}>
             {snapPage && (
@@ -323,18 +367,49 @@ export function IngestScreen({
             </View>
           )}
 
+          {done && (
+            <View style={styles.row}>
+              <View style={styles.half}>
+                <Btn
+                  testID="add-page"
+                  label="Add another page"
+                  onPress={addPage}
+                  kind="outline"
+                />
+              </View>
+              {onReview && (
+                <View style={styles.half}>
+                  <Btn
+                    testID="review-terms"
+                    label="Review terms"
+                    onPress={() => onReview(docId)}
+                    kind="outline"
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
           <Btn
             testID="play"
             label="Play Wordscape"
-            onPress={() => docId && onPlay(docId)}
+            onPress={() => playDocId && onPlay(playDocId)}
             disabled={!playEnabled}
           />
           {onDailyPlay && (
             <Btn
               testID="play-daily"
               label="Play Daily Term"
-              onPress={() => docId && onDailyPlay(docId)}
+              onPress={() => playDocId && onDailyPlay(playDocId)}
               disabled={!playEnabled}
+              kind="quiet"
+            />
+          )}
+          {target && !reading && (
+            <Btn
+              testID="new-deck"
+              label="Start a new deck instead"
+              onPress={newDeck}
               kind="quiet"
             />
           )}
@@ -503,4 +578,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   shrink: { flexShrink: 1 },
+  half: { flex: 1 },
 });

@@ -26,6 +26,7 @@ import { CrosswordScreen } from '../screens/CrosswordScreen';
 import { WordscapeScreen } from '../screens/WordscapeScreen';
 import { DailyTermScreen } from '../screens/DailyTermScreen';
 import { AskNotesScreen } from '../screens/AskNotesScreen';
+import { ReviewTermsScreen } from '../screens/ReviewTermsScreen';
 import { ProofPanelScreen } from '../screens/ProofPanelScreen';
 import { DevBenchScreen } from '../screens/DevBenchScreen';
 import { UiCheckScreen } from '../screens/UiCheckScreen';
@@ -35,7 +36,9 @@ import { useDeckStore } from '../store/useDeckStore';
 
 export type RootStackParamList = {
   Tabs: undefined;
-  Ingest: undefined;
+  /** With `appendTo`, the scan is added to that deck as another page. */
+  Ingest: { appendTo?: string } | undefined;
+  ReviewTerms: { docId: string };
   Crossword: { docId: string };
   Wordscape: { docId: string };
   DailyTerm: { docId?: string };
@@ -113,11 +116,16 @@ function Tabs() {
   );
 }
 
-function Ingest({ navigation }: Props<'Ingest'>) {
+function Ingest({ navigation, route }: Props<'Ingest'>) {
   return (
     <IngestScreen
       bridge={bridge}
       profile={profile}
+      appendTo={route.params?.appendTo}
+      onReview={docId => {
+        setCurrentDeck(docId);
+        navigation.navigate('ReviewTerms', { docId });
+      }}
       onBack={() => navigation.goBack()}
       onPlay={docId => {
         setCurrentDeck(docId);
@@ -130,6 +138,20 @@ function Ingest({ navigation }: Props<'Ingest'>) {
       snapPage={ocrAvailable() ? snapAndRead : undefined}
       pickPage={ocrAvailable() ? pickAndRead : undefined}
       pickFile={fileImportAvailable() ? importNotesFile : undefined}
+    />
+  );
+}
+
+function ReviewTerms({ navigation, route }: Props<'ReviewTerms'>) {
+  const { docId } = route.params;
+  return (
+    <ReviewTermsScreen
+      docId={docId}
+      onBack={() => navigation.goBack()}
+      onPlay={() => {
+        setCurrentDeck(docId);
+        navigation.replace('Crossword', { docId });
+      }}
     />
   );
 }
@@ -207,6 +229,7 @@ export default function Navigation() {
         <Stack.Screen name="Wordscape" component={WordscapeScreen} />
         <Stack.Screen name="DailyTerm" component={DailyTermScreen} />
         <Stack.Screen name="Ask" component={Ask} />
+        <Stack.Screen name="ReviewTerms" component={ReviewTerms} />
         <Stack.Screen name="Proof">
           {({ navigation }: Props<'Proof'>) => (
             <ProofPanelScreen onBack={() => navigation.goBack()} />
