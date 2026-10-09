@@ -1,0 +1,13 @@
+Unit 3: Relational Databases
+
+A relational database stores data in tables made of rows and columns. Each row is a record, and each column holds one attribute, such as a student's name or birthday.
+
+Every table needs a primary key, a column whose value is unique for each row and never empty, such as a student number. A foreign key is a column that refers to the primary key of another table. Foreign keys link tables together, for example connecting each enrollment record to the student who enrolled.
+
+Designers organize tables through normalization, the process of splitting data into related tables so that each fact is stored only once. Without it, the same address might be typed in five places, and changing one copy would leave the others wrong. This kind of inconsistency is called an update anomaly.
+
+People ask a database questions using SQL, the standard query language. A query can filter rows, sort them, and join tables on matching keys. An index works like the index of a book: it lets the database find rows quickly without reading the whole table, at the cost of extra storage and slower writes.
+
+A transaction groups several changes into one unit of work. Transferring money, for instance, must subtract from one account and add to another together. Reliable databases guarantee four properties for transactions. Atomicity means all of the changes happen or none do. Consistency means the data still follows every rule afterward. Isolation means transactions running at the same time do not interfere. Durability means a committed change survives a crash or power failure.
+
+Administrators protect data with regular backups and by granting each user only the permissions they need.

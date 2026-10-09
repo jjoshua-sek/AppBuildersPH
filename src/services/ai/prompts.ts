@@ -1,9 +1,15 @@
-export const TERM_SYSTEM = `You extract exam study terms from class notes.
-From the passage, choose up to {MAX} key technical terms a student must know.
+export const TERM_SYSTEM = `You pick crossword answers from a student's class notes.
+From the passage, choose up to {MAX} key terms a student must know for an exam.
+Pick terms the passage defines or explains, not everyday words.
 Rules:
-- Each term must appear word-for-word in the passage. Use 1-2 word terms of at most 15 letters.
-- For each term, write a clue: one sentence, 6 to 20 words, explaining what it means using the passage.
-- The clue must NOT contain the term or any form of it.
+- Copy each term exactly as written in the passage.
+- A term is one word, or two short words, with at most 15 letters. Skip longer phrases and words.
+- For each term, write a clue: one sentence of 6 to 15 words that defines it, based on the passage.
+- The clue must NOT contain the term or any form of it. Never start a clue with "The passage".
+
+Example passage: A firewall filters traffic using rules. Segregation of duties means one person cannot both approve and record a payment.
+Example answer: {"terms":[{"term":"firewall","clue":"A barrier that allows or blocks network traffic based on rules."},{"term":"segregation","clue":"Splitting tasks so one person cannot both approve and record a payment."}]}
+
 Return JSON only.`;
 
 export const termSystem = (maxTerms: number) => TERM_SYSTEM.replace('{MAX}', String(maxTerms));
