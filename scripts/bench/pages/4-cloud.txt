@@ -1,0 +1,13 @@
+Lesson 6: Cloud Computing Basics
+
+Cloud computing delivers computing resources over the internet on demand, so a company rents servers and storage instead of buying them. Customers pay only for what they use, which turns a large upfront purchase into a monthly operating cost.
+
+There are three main service models. In infrastructure as a service, the provider supplies virtual machines, storage and networks, and the customer manages the operating system and applications. In platform as a service, the provider also runs the operating system and runtime, so developers only deploy their code. In software as a service, the customer simply uses a finished application, such as web-based email.
+
+A key benefit is elasticity: resources grow automatically when demand rises and shrink when it falls. Scalability is the broader ability of a system to handle more work by adding resources.
+
+Large providers run data centers in many geographic regions. Each region contains several availability zones, which are separate data centers with their own power and cooling. Spreading an application across zones keeps it running if one data center fails, a property called high availability.
+
+Security in the cloud follows the shared responsibility model. The provider secures the physical buildings, hardware and core network. The customer secures its own data, user accounts and settings. Many breaches happen because a customer left a storage bucket open to the public, not because the provider was attacked.
+
+Before moving to the cloud, organizations should consider vendor lock-in, which happens when an application depends so heavily on one provider's services that moving away becomes slow and expensive. Latency, data residency laws and the total cost over several years also matter.

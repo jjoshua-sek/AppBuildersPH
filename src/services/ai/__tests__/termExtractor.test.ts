@@ -1,5 +1,5 @@
 import { createMockBridge } from '../mockBridge';
-import { extractTerms, validateTerms } from '../termExtractor';
+import { checkTerm, extractTerms, parseTermsJson, validateTerms } from '../termExtractor';
 import { parseWhy, generateWhy } from '../whyItMatters';
 
 const passage =
@@ -70,4 +70,26 @@ describe('why it matters', () => {
     expect(card.why).toMatch(/matters/);
     expect(spy.mock.calls[0][0].priority).toBe('low');
   });
+});
+
+describe('checkTerm reasons', () => {
+  const clue = 'An independent review that confirms records are right.';
+  test.each([
+    ['ISO 27001', clue, 'not-letters'],
+    ['IT', clue, 'too-short'],
+    ['internal control', clue, 'too-long'],
+    ['firewall', clue, 'not-in-passage'],
+    ['COBIT', 'A framework.', 'clue-length'],
+    ['audit', 'An audit checks the records for accuracy.', 'clue-leaks'],
+    ['Access', 'The ability to use a system or read its data.', null],
+  ])('%s -> %s', (term, c, reason) => {
+    expect(checkTerm({ term, clue: c }, passage)).toBe(reason);
+  });
+});
+
+test('parseTermsJson tells bad JSON apart from an empty list', () => {
+  expect(parseTermsJson('{"terms": [')).toBeNull();
+  expect(parseTermsJson('{"other": []}')).toBeNull();
+  expect(parseTermsJson('{"terms": []}')).toEqual([]);
+  expect(parseTermsJson('{"terms": [{"term": " Audit ", "clue": 5}]}')).toEqual([{ term: 'Audit', clue: '' }]);
 });
