@@ -20,9 +20,9 @@ The best AI study tools need the cloud. With no signal or no load, they stop wor
 
 Backpack Tutor puts the AI **on the phone itself**:
 
-1. 📸 **Snap a handout** (or paste your notes)
+1. 📸 **Snap a handout**, import a file (PDF, TXT, DOCX) or paste your notes
 2. 🧠 The on-device AI **finds the key terms and writes clues** from *your* material
-3. 🧩 Play a **Notes Crossword** built from those terms
+3. 🧩 Play **Wordscape** or a **Notes Crossword** built from those terms
 4. 🦉 Stuck? A **Socratic tutor** asks guiding questions based on your notes. It won't just give you the answer.
 5. 💡 After you solve a term, a **"why it matters" card** explains it
 6. 📅 A **Daily Term** brings back the words you missed most
@@ -51,7 +51,7 @@ Backpack Tutor puts the AI **on the phone itself**:
         ▼
  🧠 Extract terms + write clues (JSON) ........... on-device LLM #3
         │
-        ├──► 🧩 Notes Crossword (built from your terms)
+        ├──► 🧩 Wordscape / Notes Crossword (built from your terms)
         │          │ stuck / 2 wrong answers
         │          ▼
         │      🦉 Socratic Tutor (answer hidden from the AI + leak guard)
@@ -73,20 +73,24 @@ If you type the correct answer into the chat, the game marks it solved without e
 ## 🎮 Features
 
 **Must-have (P0)**
-- [x] Paste text and camera OCR import
-- [x] AI term and clue extraction
-- [x] Proof Panel (shows the model, GPU/CPU backend, speed, and **0 cloud calls**)
-- [ ] Notes Crossword (logic done, screen in progress)
-- [ ] Socratic tutor with leak guard (logic done, screen in progress)
-- [ ] "Why it matters" card after each solved term
+- [x] Camera, photo, file (PDF, TXT, DOCX) and pasted-text import
+- [x] AI term and clue extraction, with a clear message when fewer than 3 terms are found
+- [x] Proof Panel (shows the model, CPU backend, speed, and **0 cloud calls**)
+- [x] Wordscape and Notes Crossword built from your terms
+- [x] Socratic tutor with leak guard, opened from a game entry
+- [x] "Why it matters" card after each solved term
 
 **Should-have (P1)**
 - [x] "Ask my notes" (search your notes by meaning)
-- [ ] Daily Term (logic done, screen in progress)
-- [ ] Missed-term tracking
+- [x] Daily Term
+- [x] Missed-term tracking
+- [x] Streaks and progress
+- [ ] Tutor chat tab with answers checked against your notes (after #22)
+- [ ] Review terms, add pages to a deck, multiple-choice quiz (#21, #22)
 
 **Nice-to-have (P2)**
-- [ ] PDF import · streaks · Taglish tutor replies · read hints aloud
+- [x] Optional School Planner: syncs Google Classroom / Microsoft Teams tasks when online (off by default)
+- [ ] Taglish tutor replies · read hints aloud
 
 ---
 
@@ -94,13 +98,13 @@ If you type the correct answer into the chat, the game marks it solved without e
 
 | Layer | Technology |
 |---|---|
-| App | React Native 0.87 CLI (TypeScript, New Architecture), Android and iOS (iOS code exists but isn't built yet) |
-| On-device LLM | [llama.rn](https://github.com/mybigday/llama.rn) 0.12 (llama.cpp): CPU on the Infinix (2 threads), Metal GPU on the iPhone 13 Pro Max |
-| OCR | Google ML Kit Text Recognition v2 on Android (bundled, works offline), Apple Vision on iOS |
+| App | React Native 0.87 CLI (TypeScript, New Architecture), Android. iOS code exists but isn't built or tested |
+| On-device LLM | [llama.rn](https://github.com/mybigday/llama.rn) 0.12 (llama.cpp): CPU on the Infinix (2 threads) |
+| OCR | Google ML Kit Text Recognition v2 (bundled, works offline) |
 | Database | op-sqlite with FTS5 full-text search |
 | Vector search | Cosine similarity on on-device embeddings |
 | State | zustand |
-| UI | react-navigation (native stack + bottom tabs), react-native-screens, react-native-svg, lucide icons |
+| UI | react-navigation (native stack + bottom tabs: Home, Decks, Games, Progress), react-native-screens, react-native-svg, lucide icons, AI-generated artwork (ChatGPT) |
 
 ### 🤖 Models (all on-device)
 
@@ -108,7 +112,7 @@ If you type the correct answer into the chat, the game marks it solved without e
 |---|---|---|---|
 | LLM | Gemma 3 1B IT (quantized with `llama-quantize --pure` from the [ggml-org F16 file](https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF)) | GGUF Q4_0 | 569 MB |
 | Embeddings | [snowflake-arctic-embed-xs](https://huggingface.co/ChristianAzinn/snowflake-arctic-embed-xs-gguf) | GGUF Q8_0 | small |
-| OCR | ML Kit Text Recognition v2 (Android) / Apple Vision (iOS) | built in | — |
+| OCR | ML Kit Text Recognition v2 | built in | — |
 
 Why this model: see [`docs/benchmarks.md`](docs/benchmarks.md).
 
@@ -116,20 +120,17 @@ Why this model: see [`docs/benchmarks.md`](docs/benchmarks.md).
 
 ## 🚀 Getting Started
 
-> Full step-by-step guide, including Windows fixes and iOS: **[`docs/RUNTIME_SETUP.md`](docs/RUNTIME_SETUP.md)**.
+> Full step-by-step guide, including Windows fixes: **[`docs/RUNTIME_SETUP.md`](docs/RUNTIME_SETUP.md)**.
 
 ### Requirements
 - **Node.js 22.11+** and npm (the project requires it)
 - **Android:** Android Studio + Android SDK, JDK 17, `adb` with USB debugging on the phone
-- **iOS:** a Mac with Xcode and CocoaPods
 
 ### Phones
 
 | Phone | Chip | How the AI runs | Role |
 |---|---|---|---|
-| **Infinix Hot 50 Pro+** | Helio G100, 8 GB | CPU, 2 threads | **Main demo phone** ("Maria's phone") |
-| iPhone 13 Pro Max | A15, 6 GB | Metal GPU | Fast path (needs a Mac to build) |
-| iPhone 11 | A13, 4 GB | CPU, 2 threads | Spare / judge pass-around (needs a Mac to build) |
+| **Infinix Hot 50 Pro+** | Helio G100, 8 GB | CPU, 2 threads | **The demo and test phone** ("Maria's phone") |
 
 The app picks settings for each phone automatically (`src/services/device/deviceProfile.ts`). Most budget Android phones in the Philippines use MediaTek chips with Mali GPUs, which llama.rn can't use yet, so the AI runs on the CPU there.
 
@@ -161,7 +162,6 @@ npx react-native run-android --mode release
 # Android: development (needs Metro running)
 npx react-native run-android
 ```
-iOS steps (Xcode signing, copying models with Finder) are in [`docs/RUNTIME_SETUP.md`](docs/RUNTIME_SETUP.md) §3.
 
 ### Windows notes
 - If `npm install` fails on llama.rn's download, run `$env:RNLLAMA_SKIP_POSTINSTALL = "1"; npm install`, then `node node_modules/llama.rn/install/download-native-artifacts.js`.
@@ -194,21 +194,24 @@ AppBuildersPH/
 │   ├── benchmarks.md         # DevBench results
 │   └── bench/                # laptop extraction benchmark
 ├── scripts/                  # push-models.sh, bench/
-├── android/                  # native code (incl. Kotlin ML Kit OCR module)
-├── ios/                      # native code (incl. Swift Apple Vision OCR module)
+├── android/                  # native code (Kotlin ML Kit OCR, file import, optional school sync)
+├── ios/                      # iOS native code (not built for the hackathon)
 └── src/
-    ├── app/                  # App.tsx, navigation, theme
-    ├── screens/              # Splash, Home, Ingest, AskNotes, ProofPanel, DevBench, UiCheck
-    ├── components/           # Button, Gradient
-    ├── assets/sample/        # sample handout + terms
+    ├── app/                  # App.tsx, navigation.tsx (tabs + stack), theme
+    ├── screens/              # Splash, Home, Decks, Games, Progress, Ingest (Scan Notes),
+    │                         # Wordscape, Crossword, DailyTerm, AskNotes, SchoolPlanner,
+    │                         # ProofPanel, DevBench, UiCheck
+    ├── components/           # TutorSheet, ui, Gradient, deck and streak components
+    ├── assets/               # images (AI-generated) and sample handout + terms
     ├── services/
     │   ├── ai/               # llama.rn bridge, prompts, term extractor, tutor, leak guard, DevBench
-    │   ├── ingest/           # OCR, chunker, pipeline
+    │   ├── ingest/           # OCR, file import, chunker, pipeline
     │   ├── rag/              # notes search, term selection
-    │   ├── game/             # crossword builder, daily term
+    │   ├── game/             # crossword builder, Wordscape layout, daily term
     │   ├── db/               # database schema + queries
     │   ├── device/           # per-phone settings
-    │   └── net/              # network call counter
+    │   ├── net/              # network call counter
+    │   └── school/           # optional School Planner sync
     └── store/                # zustand stores
 ```
 
@@ -225,7 +228,7 @@ Measured on the **Infinix Hot 50 Pro+** (CPU, 2 threads, Gemma 3 1B Q4_0). Detai
 | Prompt speed | ~80 tokens/s |
 | Terms found per handout page | **~10** on typed text, 7–8 from a real photo |
 | Time to read a whole page | ~50 s |
-| Tutor answer leaks (visible) | **0 / 20** (50-test run still to do) |
+| Tutor answer leaks (visible) | **0 / 20** (50-attempt run on the Infinix: pending) |
 | Cloud calls | **0** |
 
 ---
@@ -236,7 +239,7 @@ Measured on the **Infinix Hot 50 Pro+** (CPU, 2 threads, Gemma 3 1B Q4_0). Detai
 - GPU speed-up on more Android phones (MediaTek / Mali)
 
 ## 📜 Disclosures
-All models, libraries, and AI tools used will be listed in `DISCLOSURES.md` (being added by Part D). **No cloud APIs are used at runtime.**
+Every model, library, AI tool and image is listed in [`DISCLOSURES.md`](DISCLOSURES.md). **The AI never uses the cloud.** The optional School Planner can sync Google Classroom / Microsoft Teams tasks when online; it is off by default and not used in the demo.
 
 ## 🤝 Contributing
 See [`CONTRIBUTING.md`](CONTRIBUTING.md): branch from `main`, open a pull request, and run the checks first.
@@ -245,10 +248,10 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md): branch from `main`, open a pull reques
 
 | Part | Owns | Member |
 |---|---|---|
-| A: Runtime | Project setup, llama.rn, model benchmark, Proof Panel, release builds | TODO |
-| B: Ingest and data | Camera OCR, chunking, term extraction, database, Ingest screen | TODO |
-| C: Games | Crossword, clue-list fallback, Daily Term | TODO |
-| D: Tutor | Leak guard and its tests, tutor prompt and screen, README, disclosures | Kiev Gonzales ([@kvzl0](https://github.com/kvzl0)) |
+| A: Runtime | Project setup, llama.rn, model benchmark, Proof Panel, release builds | [@jjoshua-sek](https://github.com/jjoshua-sek), Kiev Gonzales (device builds) |
+| B: Ingest and data | Camera OCR, chunking, term extraction, database, Ask my notes | Michael ([@delosreyesmichaeljeffrey-stack](https://github.com/delosreyesmichaeljeffrey-stack)) |
+| C: Games and UI | Wordscape, Crossword, Daily Term, the app UI | Jedrick ([@def-jedd](https://github.com/def-jedd)) |
+| D: Tutor | Leak guard and its tests, tutor prompt, leak gate, README, disclosures | Kiev Gonzales ([@kvzl0](https://github.com/kvzl0)) |
 | Pitch | Slides, demo script, backup video | TODO |
 
 ## 📄 License
