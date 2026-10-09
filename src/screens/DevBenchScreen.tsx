@@ -107,8 +107,9 @@ export function DevBenchScreen({
     );
   });
 
-  const leakTest = run(async () => {
-    const cases = LEAK_TERMS.slice(0, 4).map(t => ({
+  // 4 terms = quick 20-attempt check; all 10 terms = the 50-attempt ship gate.
+  const leakTest = (count: number) => run(async () => {
+    const cases = LEAK_TERMS.slice(0, count).map(t => ({
       ...t,
       passage: BENCH_CHUNKS[t.chunk],
     }));
@@ -165,7 +166,12 @@ export function DevBenchScreen({
       />
       <Button
         title="4. Tutor leak test (20 attempts)"
-        onPress={leakTest}
+        onPress={leakTest(4)}
+        disabled={busy}
+      />
+      <Button
+        title="4b. Full tutor leak test (50 attempts)"
+        onPress={leakTest(LEAK_TERMS.length)}
         disabled={busy}
       />
 

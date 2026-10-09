@@ -75,8 +75,18 @@ export async function logAttempt(a: Attempt): Promise<void> {
   );
 }
 
+/** Completed Wordscape terms survive closing the app and contribute to study progress. */
+export async function getWordscapeSolved(docId: string): Promise<Set<string>> {
+  const { rows } = await getDb().execute(
+    `SELECT DISTINCT a.term_id FROM attempts a JOIN terms t ON t.id = a.term_id
+     WHERE t.doc_id = ? AND a.mode = 'wordscape' AND a.correct = 1`,
+    [docId],
+  );
+  return new Set(rows.map(r => String(r.term_id)));
+}
+
 /**
- * Today's term for a document: the most-missed term (4–10 letters) in the last 7
+ * Today's term for a document: the most-missed term (3–16 letters) in the last 7
  * days, else the least recently seen. Saved in `daily` on first call, so it stays
  * the same all day. Null when the document has no eligible term.
  */
@@ -340,4 +350,125 @@ export async function getPendingWhy(docId: string): Promise<PendingWhy[]> {
     clue: String(r.clue),
     text: String(r.text),
   }));
+}
+
+/* ---- Progress ---- */
+
+/** Answer attempts per local calendar day for the 12-week study activity grid. */
+export async function getStudyActivity(
+  now = new Date(),
+): Promise<Record<string, number>> {
+  const firstDay = new Date(now);
+  firstDay.setDate(firstDay.getDate() - firstDay.getDay() - 11 * 7);
+  firstDay.setHours(0, 0, 0, 0);
+  const { rows } = await getDb().execute(
+    `SELECT date(ts / 1000, 'unixepoch', 'localtime') AS day, count(*) AS count
+     FROM attempts WHERE ts >= ? AND ts <= ? GROUP BY day`,
+    [firstDay.getTime(), now.getTime()],
+  );
+  return Object.fromEntries(rows.map(r => [String(r.day), Number(r.count)]));
+}
+
+export async function getDailyRound(
+  term: TermRow,
+  now = new Date(),
+): Promise<{ guesses: string[]; solved: boolean }> {
+  const { rows } = await getDb().execute(
+    'SELECT guesses, solved FROM daily_rounds WHERE day = ? AND doc_id = ? AND term_id = ?',
+    [todayKey(now), term.doc_id, term.id],
+  );
+  if (!rows[0]) return { guesses: [], solved: false };
+  try {
+    const guesses: unknown = JSON.parse(String(rows[0].guesses));
+    if (
+      !Array.isArray(guesses) ||
+      guesses.length > 6 ||
+      !guesses.every(
+        g =>
+          typeof g === 'string' &&
+          new RegExp(`^[A-Z]{${term.answer.length}}$`).test(g),
+      )
+    )
+      return { guesses: [], solved: false };
+    return { guesses, solved: Number(rows[0].solved) === 1 };
+  } catch {
+    return { guesses: [], solved: false };
+  }
+}
+
+export async function saveDailyRound(
+  term: TermRow,
+  guesses: string[],
+  solved: boolean,
+  now = new Date(),
+): Promise<void> {
+  await getDb().execute(
+    'INSERT INTO daily_rounds (day, doc_id, term_id, guesses, solved) VALUES (?,?,?,?,?) ON CONFLICT(day, doc_id) DO UPDATE SET term_id = excluded.term_id, guesses = excluded.guesses, solved = excluded.solved',
+    [
+      todayKey(now),
+      term.doc_id,
+      term.id,
+      JSON.stringify(guesses),
+      solved ? 1 : 0,
+    ],
+  );
+}
+
+export type DeckProgress = {
+  id: string;
+  title: string;
+  mastered: number; // crossword terms answered correctly at least once
+  total: number; // crossword terms
+};
+
+export type ProgressStats = {
+  streak: number; // consecutive days with an attempt, ending today or yesterday
+  mastered: number;
+  total: number;
+  decks: DeckProgress[];
+};
+
+/** Consecutive days (YYYY-MM-DD, any order) ending today, or yesterday if today has none yet. */
+export function streakFrom(days: string[], now = new Date()): number {
+  const set = new Set(days);
+  const d = new Date(now);
+  if (!set.has(todayKey(d))) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (set.has(todayKey(d))) {
+    n++;
+    d.setDate(d.getDate() - 1);
+  }
+  return n;
+}
+
+/** Streak and mastery for the Home and Progress screens, from the attempts table. */
+export async function getProgressStats(
+  now = new Date(),
+): Promise<ProgressStats> {
+  const db = getDb();
+  const { rows: dayRows } = await db.execute(
+    `SELECT DISTINCT date(ts / 1000, 'unixepoch', 'localtime') AS d FROM attempts`,
+  );
+  const { rows } = await db.execute(
+    `SELECT d.id, d.title,
+       (SELECT count(*) FROM terms t WHERE t.doc_id = d.id AND t.selected = 1) AS total,
+       (SELECT count(*) FROM terms t WHERE t.doc_id = d.id AND t.selected = 1
+          AND EXISTS (SELECT 1 FROM attempts a WHERE a.term_id = t.id AND a.correct = 1)) AS mastered
+     FROM documents d ORDER BY d.created_at DESC, d.rowid DESC`,
+  );
+  const decks = rows.map(r => ({
+    id: String(r.id),
+    title: String(r.title),
+    total: Number(r.total),
+    mastered: Number(r.mastered),
+  }));
+  return {
+    streak: streakFrom(
+      dayRows.map(r => String(r.d)),
+      now,
+    ),
+    mastered: decks.reduce((s, d) => s + d.mastered, 0),
+    total: decks.reduce((s, d) => s + d.total, 0),
+    decks,
+  };
 }

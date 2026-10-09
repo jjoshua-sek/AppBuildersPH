@@ -46,7 +46,7 @@ class OcrModule(private val ctx: ReactApplicationContext) : ReactContextBaseJava
    * ~4k px on the long side, so a 100 MP camera can't run the app out of memory.
    * A page at 2-4k px is still well above ML Kit's 16 px-per-character guidance.
    */
-  private fun load(uri: Uri): InputImage {
+  internal fun load(uri: Uri): InputImage {
     val resolver = ctx.contentResolver
     fun open() = resolver.openInputStream(uri) ?: throw IOException("No data at $uri")
 
