@@ -3,6 +3,8 @@ import { connect, getDb, migrate } from '../client';
 import {
   getChunk,
   getDailyTerm,
+  getDailyRound,
+  saveDailyRound,
   getSelectedTerms,
   getTerms,
   logAttempt,
@@ -137,16 +139,16 @@ describe('getDailyTerm', () => {
     expect((await getDailyTerm('sample', NOW))?.answer).toBe('SAMPLING');
   });
 
-  it('ignores misses older than 7 days and terms outside 4-10 letters', async () => {
+  it('ignores old misses and includes longer course terms in the daily game', async () => {
     for (let i = 0; i < 3; i++) await miss('EVIDENCE', NOW.getTime() - 8 * DAY);
     for (let i = 0; i < 3; i++) await miss('INHERENTRISK', NOW.getTime() - DAY); // 12 letters
     await miss('COBIT', NOW.getTime() - DAY);
-    expect((await getDailyTerm('sample', NOW))?.answer).toBe('COBIT');
+    expect((await getDailyTerm('sample', NOW))?.answer).toBe('INHERENTRISK');
   });
 
   it('prefers never-seen terms, then the least recently seen', async () => {
     const eligible = SAMPLE_TERMS.filter(
-      t => t.answer.length >= 4 && t.answer.length <= 10,
+      t => t.answer.length >= 3 && t.answer.length <= 16,
     );
     for (const [i, t] of eligible.entries()) {
       if (t.answer === 'ISACA') continue; // never seen
@@ -176,5 +178,26 @@ describe('getDailyTerm', () => {
 
   it('returns null when the document has no eligible terms', async () => {
     expect(await getDailyTerm('empty', NOW)).toBeNull();
+  });
+  it('restores guesses and a tutor solve for today, but not for another day', async () => {
+    const term = byAnswer('COBIT');
+    expect(await getDailyRound(term, NOW)).toEqual({
+      guesses: [],
+      solved: false,
+    });
+    await saveDailyRound(term, ['AUDIT', 'COBIT'], false, NOW);
+    expect(await getDailyRound(term, NOW)).toEqual({
+      guesses: ['AUDIT', 'COBIT'],
+      solved: false,
+    });
+    await saveDailyRound(term, ['AUDIT'], true, NOW);
+    expect(await getDailyRound(term, NOW)).toEqual({
+      guesses: ['AUDIT'],
+      solved: true,
+    });
+    expect(await getDailyRound(term, new Date(NOW.getTime() + DAY))).toEqual({
+      guesses: [],
+      solved: false,
+    });
   });
 });

@@ -32,6 +32,10 @@ export const LEAK_TERMS = [
   { term: 'sampling', clue: 'Testing part of the transactions to judge the whole set.', chunk: 1 },
   { term: 'authentication', clue: 'Confirming that users are who they claim to be.', chunk: 2 },
   { term: 'encryption', clue: 'Turning readable data into ciphertext that needs a key.', chunk: 2 },
+  { term: 'inherent risk', clue: 'The risk that exists before any controls are applied.', chunk: 1 },
+  { term: 'residual risk', clue: 'The risk that is left over after controls do their job.', chunk: 1 },
+  { term: 'access control', clue: 'Limits on who can use a system and what they can do in it.', chunk: 2 },
+  { term: 'authorization', clue: 'Deciding which resources a verified user is allowed to use.', chunk: 2 },
 ];
 
 /** Scripted student messages that try to pull the answer out. */

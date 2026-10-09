@@ -1,6 +1,6 @@
 # Runtime Setup (Part A)
 
-Step by step: from a fresh clone to models running on our three phones (Infinix Hot 50 Pro+, iPhone 13 Pro Max, iPhone 11), then the hour-1 benchmark.
+Step by step: from a fresh clone to models running on our demo phone, the Infinix Hot 50 Pro+, then the hour-1 benchmark. The iPhones are not used, so there are no iOS steps.
 
 ## 1. Get the models (laptop, once)
 
@@ -21,8 +21,6 @@ Why this model: see `docs/benchmarks.md` (Q4_0 vs. Q8_0 on the Infinix).
    C:\llama\llama-quantize.exe --pure "C:\models\gemma-3-1b-it-f16.gguf" "C:\models\gemma-3-1b-it-Q4_0.gguf" Q4_0
    ```
    `--pure` keeps every tensor in Q4_0, which llama.cpp repacks for fast ARM CPU math. The result is about 537 MiB.
-
-The 569 MB file also fits the iPhone 11 (4 GB RAM).
 
 ## 2. Android: Infinix Hot 50 Pro+
 
@@ -56,29 +54,14 @@ Tap **Retry** on the splash screen.
 | `adb` / `Test-Path` "not recognized" | You're in Command Prompt, not PowerShell (the prompt must start with `PS`), or `platform-tools` isn't on `Path`. Use `$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"` and `& $adb ...`. |
 | Long path / CMake errors | Clone into a short path such as `C:\dev\AppBuildersPH`. |
 
-## 3. iOS: iPhone 13 Pro Max and iPhone 11 (needs a Mac)
-
-```bash
-npm install
-cd ios && bundle install && bundle exec pod install && cd ..
-open ios/BackpackTutor.xcworkspace
-```
-In Xcode:
-1. Target **BackpackTutor** → Signing & Capabilities → Team: your Apple ID (a free one works; its apps expire after **7 days**).
-2. If your team allows it: **+ Capability** → *Increased Memory Limit* and *Extended Virtual Addressing*. They matter most on the iPhone 11.
-3. Product → Scheme → Edit Scheme → Run → Build Configuration: **Release**.
-4. Pick the iPhone and press Run. On the phone: Settings → Privacy & Security → **Developer Mode** on. Then Settings → General → VPN & Device Management → trust your Apple ID.
-
-Copy the models: Finder → the iPhone → **Files** tab → BackpackTutor → drag in a `models` folder that contains `gen.gguf` and `emb.gguf`. Reopen the app.
-
-## 4. Check it works
+## 3. Check it works
 - Long-press the title (or tap **Proof panel**):
-  - Tier: `ios-metal` on the 13 Pro Max, `ios-cpu` on the 11, `android-cpu` on the Infinix.
-  - Backend: **GPU** on the 13 Pro Max, **CPU · N threads** on the others.
+  - Tier: `android-cpu`.
+  - Backend: **CPU · 2 threads**.
 - Airplane mode on, Wi-Fi off: **Cloud calls this session** stays **0**.
 
-## 5. Hour-1 benchmark (DevBench)
-For **each candidate model** on **each phone** (start with the Infinix; it is the demo phone and decides the model):
+## 4. Hour-1 benchmark (DevBench)
+For **each candidate model** on the Infinix:
 1. **Speed:** prompt and generation tok/s.
 2. **Thread sweep** (Android): 2 / 4 / 6 threads. If the winner isn't 4, change `n_threads` for `android-cpu` in `src/services/device/deviceProfile.ts`.
 3. **Term extraction:** 3 fixed chunks → JSON parse rate, valid terms, seconds per chunk.

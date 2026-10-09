@@ -1,6 +1,6 @@
 # Benchmarks
 
-Paste DevBench reports here, one block per phone × model. See `docs/RUNTIME_SETUP.md` §5.
+Paste DevBench reports from the Infinix here, one block per model. See `docs/RUNTIME_SETUP.md` §4.
 
 ## Decision
 - **Chosen LLM: Gemma 3 1B IT, Q4_0**, made with `llama-quantize --pure` from the F16 file in `ggml-org/gemma-3-1b-it-GGUF` (569 MB).
