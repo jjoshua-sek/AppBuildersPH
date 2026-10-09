@@ -1,5 +1,6 @@
 import type { AiBridge } from '../../types';
 import { leaks, termPatterns } from './leakGuard';
+import { parseJsonObject, salvageTermObjects } from './modelJson';
 import { termSystem } from './prompts';
 
 export type ExtractedTerm = { term: string; answer: string; clue: string; chunkId: string };
@@ -25,34 +26,45 @@ export const termSchema = (maxTerms: number) => ({
   required: ['terms'],
 });
 
-/** Keeps only crossword-safe, grounded terms whose clue doesn't give the answer away. */
-export function validateTerms(raw: string, passage: string, chunkId: string): ExtractedTerm[] {
-  let parsed: { terms?: { term?: unknown; clue?: unknown }[] };
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed?.terms)) return [];
-  return parsed.terms.flatMap((x): ExtractedTerm[] => {
+/** Longest answer the crossword accepts (e.g. AUTHENTICATION = 14, ACCESSCONTROL = 13). */
+export const MAX_ANSWER = 15;
+
+/** Why a term can't be used, or null when it's fine. */
+export function rejectReason(term: string, clue: string, passage: string): string | null {
+  const answer = toAnswer(term);
+  const words = clue.split(/\s+/).filter(Boolean).length;
+  if (!/^[A-Za-z][A-Za-z -]*$/.test(term)) return 'not letters only';
+  if (answer.length < 3) return 'answer too short';
+  if (answer.length > MAX_ANSWER) return `answer over ${MAX_ANSWER} letters`;
+  const grounded = termPatterns(term).some(p => {
+    p.lastIndex = 0;
+    return p.test(passage);
+  });
+  if (!grounded) return 'not in the notes';
+  if (words < 4) return 'clue too short';
+  if (words > 22) return 'clue too long';
+  if (leaks(clue, term)) return 'clue gives the answer away';
+  return null;
+}
+
+/** Every term the model proposed, with the reason it was rejected (null = kept). */
+export function reviewTerms(raw: string, passage: string) {
+  const parsed = parseJsonObject(raw);
+  const items: { term?: unknown; clue?: unknown }[] = Array.isArray(parsed?.terms)
+    ? parsed.terms
+    : salvageTermObjects(raw); // cut off before the JSON closed: keep the finished terms
+  return items.map(x => {
     const term = typeof x?.term === 'string' ? x.term.trim() : '';
     const clue = typeof x?.clue === 'string' ? x.clue.trim() : '';
-    const answer = toAnswer(term);
-    const words = clue.split(/\s+/).filter(Boolean).length;
-    const grounded = termPatterns(term).some(p => {
-      p.lastIndex = 0;
-      return p.test(passage);
-    });
-    const ok =
-      /^[A-Za-z][A-Za-z -]*$/.test(term) && // letters only, crossword-safe
-      answer.length >= 3 &&
-      answer.length <= 12 &&
-      grounded && // appears in the notes
-      words >= 4 &&
-      words <= 22 &&
-      !leaks(clue, term); // the clue never contains the answer
-    return ok ? [{ term, answer, clue, chunkId }] : [];
+    return { term, clue, reason: rejectReason(term, clue, passage) };
   });
+}
+
+/** Keeps only crossword-safe, grounded terms whose clue doesn't give the answer away. */
+export function validateTerms(raw: string, passage: string, chunkId: string): ExtractedTerm[] {
+  return reviewTerms(raw, passage)
+    .filter(t => t.reason === null)
+    .map(({ term, clue }) => ({ term, answer: toAnswer(term), clue, chunkId }));
 }
 
 export async function extractTerms(

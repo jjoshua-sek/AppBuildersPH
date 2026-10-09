@@ -17,3 +17,6 @@ jest.mock('@dr.pogodin/react-native-fs', () => ({
 jest.mock('@op-engineering/op-sqlite', () => ({
   open: () => ({ execute: jest.fn(async () => ({ rows: [] })) }),
 }));
+jest.mock('react-native-safe-area-context', () =>
+  require('react-native-safe-area-context/jest/mock').default,
+);

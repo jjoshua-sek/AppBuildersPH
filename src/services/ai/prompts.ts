@@ -1,7 +1,7 @@
 export const TERM_SYSTEM = `You extract exam study terms from class notes.
 From the passage, choose up to {MAX} key technical terms a student must know.
 Rules:
-- Each term must appear word-for-word in the passage. Prefer 1-2 word terms.
+- Each term must appear word-for-word in the passage. Use 1-2 word terms of at most 15 letters.
 - For each term, write a clue: one sentence, 6 to 20 words, explaining what it means using the passage.
 - The clue must NOT contain the term or any form of it.
 Return JSON only.`;

@@ -1,5 +1,5 @@
 import { createMockBridge } from '../mockBridge';
-import { extractTerms, validateTerms } from '../termExtractor';
+import { extractTerms, rejectReason, validateTerms } from '../termExtractor';
 import { parseWhy, generateWhy } from '../whyItMatters';
 
 const passage =
@@ -27,7 +27,6 @@ describe('validateTerms', () => {
   });
 
   test.each([
-    ['answer over 12 letters', 'internal control', 'A process the organization uses to prevent errors.'],
     ['clue contains the term', 'audit', 'An audit checks the records for accuracy.'],
     ['term not in the passage', 'firewall', 'Blocks unwanted network traffic from outside.'],
     ['clue too short', 'COBIT', 'A framework.'],
@@ -69,5 +68,21 @@ describe('why it matters', () => {
     const card = await generateWhy(bridge, { term: 'audit', clue: 'c' }, passage);
     expect(card.why).toMatch(/matters/);
     expect(spy.mock.calls[0][0].priority).toBe('low');
+  });
+});
+
+describe('rejectReason', () => {
+  test('accepts course terms up to 15 letters', () => {
+    expect(rejectReason('internal control', 'A process the organization uses to prevent errors.', passage)).toBeNull();
+  });
+
+  test.each([
+    ['independent check of records', 'What an auditor does with every single record.', 'answer over 15 letters'],
+    ['firewall', 'Blocks unwanted network traffic from outside.', 'not in the notes'],
+    ['COBIT', 'A framework.', 'clue too short'],
+    ['audit', 'An audit checks the records for accuracy.', 'clue gives the answer away'],
+    ['ISO 27001', 'A standard for managing information security.', 'not letters only'],
+  ])('%s -> %s', (term, clue, reason) => {
+    expect(rejectReason(term, clue, passage)).toBe(reason);
   });
 });

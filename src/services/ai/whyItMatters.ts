@@ -1,5 +1,6 @@
 import type { AiBridge } from '../../types';
 import { WHY_SYSTEM } from './prompts';
+import { parseJsonObject } from './modelJson';
 
 export type WhyCard = { description: string; why: string | null };
 
@@ -20,15 +21,11 @@ const sentenceOk = (s: unknown): s is string => {
 
 /** Parses the model output; falls back to the clue so the card always has a description. */
 export function parseWhy(raw: string, clue: string): WhyCard {
-  try {
-    const x = JSON.parse(raw);
-    return {
-      description: sentenceOk(x?.description) ? x.description.trim() : clue,
-      why: sentenceOk(x?.why) ? x.why.trim() : null,
-    };
-  } catch {
-    return { description: clue, why: null };
-  }
+  const x = parseJsonObject(raw);
+  return {
+    description: sentenceOk(x?.description) ? x.description.trim() : clue,
+    why: sentenceOk(x?.why) ? x.why.trim() : null,
+  };
 }
 
 /**
