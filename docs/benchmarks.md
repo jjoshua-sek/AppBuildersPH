@@ -71,7 +71,7 @@ Gemma 3 1B was the only candidate run; Google's official QAT Q4_0 build (gated) 
 
 ### Infinix X6880 (android-cpu): run 5, current main (after #11–#17)
 
-- Model: Gemma 3 1B IT, Q4_0 (569 MB), load 2.0 s, backend CPU 2 threads, template: jinja
+- Model: Gemma 3 1B IT, Q4_0 (569 MB), load 2.0 s, backend CPU 2 threads
 
 | Threads | GPU layers | Prompt tok/s | Generation tok/s |
 |---|---|---|---|
@@ -84,7 +84,7 @@ Gemma 3 1B was the only candidate run; Google's official QAT Q4_0 build (gated) 
   - kept: IT audit, controls · Risk, inherent risk, residual risk, Materiality · Access control, Authentication, Authorization, Encryption
   - rejected: "preventive control", "detective control" (answer over 15 letters)
 - Tutor: raw leaks 0/20, **visible leaks 0/20**, fallbacks 0/20, 2.3 s/reply
-- Real photo ingest (Add notes, chloroplast handout): whole page 47–50 s, Play unlocks, Proof panel 0 cloud calls
+- Real photo ingest (Add notes, chloroplast handout): whole page 50 s, Play unlocks, Proof panel 0 cloud calls
 
 **Notes**
 - The Q4_0 thread sweep confirms the `android-cpu` setting of 2 threads: 20.5 tok/s vs. 15.9 at 4 and 9.4 at 6.

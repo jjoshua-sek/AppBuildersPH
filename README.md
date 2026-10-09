@@ -223,8 +223,8 @@ Measured on the **Infinix Hot 50 Pro+** (CPU, 2 threads, Gemma 3 1B Q4_0). Detai
 | Model load time | **~2.0 s** |
 | Generation speed | **~20 tokens/s** |
 | Prompt speed | ~80 tokens/s |
-| Terms found per handout page | **~10** |
-| Time to read a whole page | ~47–50 s |
+| Terms found per handout page | **~10** on typed text, 7–8 from a real photo |
+| Time to read a whole page | ~50 s |
 | Tutor answer leaks (visible) | **0 / 20** (50-test run still to do) |
 | Cloud calls | **0** |
 
