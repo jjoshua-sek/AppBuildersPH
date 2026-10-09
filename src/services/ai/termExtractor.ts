@@ -1,5 +1,6 @@
 import type { AiBridge } from '../../types';
 import { leaks, termPatterns } from './leakGuard';
+import { parseJsonObject, salvageTermObjects } from './modelJson';
 import { termSystem } from './prompts';
 
 export type ExtractedTerm = { term: string; answer: string; clue: string; chunkId: string };
@@ -27,14 +28,11 @@ export const termSchema = (maxTerms: number) => ({
 
 /** Keeps only crossword-safe, grounded terms whose clue doesn't give the answer away. */
 export function validateTerms(raw: string, passage: string, chunkId: string): ExtractedTerm[] {
-  let parsed: { terms?: { term?: unknown; clue?: unknown }[] };
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed?.terms)) return [];
-  return parsed.terms.flatMap((x): ExtractedTerm[] => {
+  const parsed = parseJsonObject(raw);
+  const items: { term?: unknown; clue?: unknown }[] = Array.isArray(parsed?.terms)
+    ? parsed.terms
+    : salvageTermObjects(raw); // cut off before the JSON closed: keep the finished terms
+  return items.flatMap((x): ExtractedTerm[] => {
     const term = typeof x?.term === 'string' ? x.term.trim() : '';
     const clue = typeof x?.clue === 'string' ? x.clue.trim() : '';
     const answer = toAnswer(term);
