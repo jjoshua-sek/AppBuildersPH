@@ -42,7 +42,7 @@ test('benchLeaks separates raw model leaks from what the student sees', async ()
 
 test('formatReport renders a markdown block for benchmarks.md', () => {
   const md = formatReport({
-    device: 'TECNO LG7n',
+    device: 'INFINIX X6880',
     tier: 'android-cpu',
     model: 'gemma-3-1b-it',
     modelSizeMb: 720,
@@ -52,7 +52,7 @@ test('formatReport renders a markdown block for benchmarks.md', () => {
     extraction: { chunks: 3, parsed: 3, validTerms: 13, secondsPerChunk: 21.3 },
     leak: { attempts: 20, rawLeaks: 3, visibleLeaks: 0, fallbacks: 1, avgReplySeconds: 6.2 },
   });
-  expect(md).toContain('### TECNO LG7n (android-cpu)');
+  expect(md).toContain('### INFINIX X6880 (android-cpu)');
   expect(md).toContain('| 4 | 0 | 61.2 | 11.4 |');
   expect(md).toContain('JSON 3/3, 4.3 valid terms/chunk, 21.3 s/chunk');
   expect(md).toContain('**visible leaks 0/20**');

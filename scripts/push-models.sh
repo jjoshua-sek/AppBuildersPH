@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copies the two models onto a connected Android phone (Infinix / Tecno).
+# Copies the two models onto the connected Android phone (Infinix Hot 50 Pro+).
 # Install and open the app once first, so its folder exists and belongs to it.
 #   scripts/push-models.sh path/to/llm-q4_0.gguf path/to/arctic-embed-xs.gguf [device-serial]
 set -euo pipefail
