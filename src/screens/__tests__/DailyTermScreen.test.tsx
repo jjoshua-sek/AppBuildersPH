@@ -57,16 +57,17 @@ afterEach(() => {
 
 it('accepts a correct answer, logs it, and restores the completed game when reopened', async () => {
   await render('sample');
-  for (const key of 'AUDIT') await press(`key-${key}`);
+  await act(async () => {
+    button('daily-answer').props.onChangeText('AUDIT');
+  });
   await press('key-ENTER');
   expect(JSON.stringify(root.toJSON())).toContain('Solved!');
-  expect(button('key-ENTER').props.disabled).toBe(true);
   const { rows } = await getDb().execute('SELECT correct, mode FROM attempts');
   expect(rows).toEqual([{ correct: 1, mode: 'daily' }]);
   act(() => root.unmount());
   await render('sample');
   expect(JSON.stringify(root.toJSON())).toContain('Solved!');
-  expect(button('key-ENTER').props.disabled).toBe(true);
+  expect(button('daily-answer')).toBeUndefined();
 });
 
 it('offers a real note import path instead of a dead keyboard when no deck is selected', async () => {

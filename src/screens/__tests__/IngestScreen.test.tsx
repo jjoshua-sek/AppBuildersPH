@@ -114,7 +114,7 @@ it('ingests the sample handout and plays the new deck', async () => {
   });
   await until(() => deckStore.getState().status === 'done');
   expect(textOf('progress-line')).toMatch(
-    /^Done · \d+ terms found, \d+ in your puzzle$/,
+    /^Done · \d+ terms ready for Wordscape$/,
   );
   expect(deckStore.getState().decks[0]).toMatchObject({
     title: SAMPLE_TITLE,
@@ -233,24 +233,24 @@ describe('progressLine', () => {
   it('summarizes the result', () => {
     expect(
       progressLine('done', { ...p, chunk: 3, found: 9, selected: 8 }),
-    ).toBe('Done · 9 terms found, 8 in your puzzle');
+    ).toBe('Done · 9 terms ready for Wordscape');
     expect(progressLine('done', { ...p, found: 1, selected: 1 })).toBe(
-      'Done · only 1 term found. Add more notes or snap another page.',
+      'Done · 1 term ready for Wordscape',
     );
     expect(progressLine('done', { ...p, found: 2, selected: 2 })).toBe(
-      'Done · only 2 terms found. Add more notes or snap another page.',
+      'Done · 2 terms ready for Wordscape',
     );
     expect(progressLine('done', { ...p, found: 3, selected: 3 })).toBe(
-      'Done · 3 terms found, 3 in your puzzle',
+      'Done · 3 terms ready for Wordscape',
     );
   });
   it('says when it was stopped or skipped chunks', () => {
     expect(progressLine('done', { ...p, cancelled: true })).toBe(
-      'Stopped after 1/3 chunks · 4 terms found, 4 in your puzzle',
+      'Stopped after 1/3 chunks · 4 terms ready for Wordscape',
     );
     expect(
       progressLine('done', { ...p, chunk: 3, failedChunks: 1, selected: 6 }),
-    ).toBe('Done · 4 terms found, 6 in your puzzle · 1 chunk skipped');
+    ).toBe('Done · 4 terms ready for Wordscape · 1 chunk skipped');
   });
 });
 
