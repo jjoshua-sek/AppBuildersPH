@@ -24,13 +24,21 @@ export function selectTerms<T extends Candidate>(
 ): T[] {
   const kept: T[] = [];
   for (const c of candidates) {
-    if (kept.some(k => k.answer === c.answer || cosine(k.vec, c.vec) > dupThreshold)) continue;
+    if (
+      kept.some(
+        k => k.answer === c.answer || cosine(k.vec, c.vec) > dupThreshold,
+      )
+    )
+      continue;
     kept.push(c);
   }
 
   const byChunk = new Map<number, T[]>();
-  for (const c of kept) byChunk.set(c.chunkIdx, [...(byChunk.get(c.chunkIdx) ?? []), c]);
-  const queues = [...byChunk.entries()].sort((a, b) => a[0] - b[0]).map(([, q]) => q);
+  for (const c of kept)
+    byChunk.set(c.chunkIdx, [...(byChunk.get(c.chunkIdx) ?? []), c]);
+  const queues = [...byChunk.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, q]) => q);
 
   const out: T[] = [];
   while (out.length < max && queues.some(q => q.length)) {

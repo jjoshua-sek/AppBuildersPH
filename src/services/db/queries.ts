@@ -140,6 +140,66 @@ export async function getDocuments(): Promise<DeckSummary[]> {
   }));
 }
 
+/* ---- Search ("Ask my notes") ---- */
+
+export type ChunkVector = ChunkRow & { embedding: Float32Array };
+
+/** BLOB → Float32Array. op-sqlite returns an ArrayBuffer, other drivers a Uint8Array view. */
+function toVector(blob: unknown): Float32Array | null {
+  if (blob == null) return null;
+  const bytes = ArrayBuffer.isView(blob)
+    ? new Uint8Array(blob.buffer, blob.byteOffset, blob.byteLength)
+    : new Uint8Array(blob as ArrayBuffer);
+  if (bytes.byteLength % 4) return null;
+  return new Float32Array(bytes.slice().buffer); // copy: the view may be unaligned
+}
+
+/** Chunks with their embeddings, for one document or (no docId) all of them. */
+export async function getChunkVectors(docId?: string): Promise<ChunkVector[]> {
+  const { rows } = await getDb().execute(
+    `SELECT id, doc_id, idx, text, embedding FROM chunks${
+      docId ? ' WHERE doc_id = ?' : ''
+    }
+     ORDER BY doc_id, idx`,
+    docId ? [docId] : [],
+  );
+  return rows.flatMap(r => {
+    const embedding = toVector(r.embedding);
+    return embedding
+      ? [
+          {
+            id: String(r.id),
+            doc_id: String(r.doc_id),
+            idx: Number(r.idx),
+            text: String(r.text),
+            embedding,
+          },
+        ]
+      : [];
+  });
+}
+
+/**
+ * Ids of chunks containing any of the words (FTS5). Words are reduced to letters and
+ * digits and quoted, so user input can never form FTS5 syntax (AND, NOT, *, quotes).
+ */
+export async function keywordChunkIds(
+  words: string[],
+  docId?: string,
+): Promise<Set<string>> {
+  const terms = [
+    ...new Set(words.map(w => w.toLowerCase().replace(/[^a-z0-9]/g, ''))),
+  ].filter(w => w.length >= 3);
+  if (!terms.length) return new Set();
+  const { rows } = await getDb().execute(
+    `SELECT chunk_id FROM chunks_fts WHERE chunks_fts MATCH ?${
+      docId ? ' AND doc_id = ?' : ''
+    }`,
+    [terms.map(w => `"${w}"`).join(' OR '), ...(docId ? [docId] : [])],
+  );
+  return new Set(rows.map(r => String(r.chunk_id)));
+}
+
 /* ---- Ingest writes (Lane B's pipeline only) ---- */
 
 export async function insertDocument(d: {
