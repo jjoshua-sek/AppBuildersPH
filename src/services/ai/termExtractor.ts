@@ -1,5 +1,5 @@
 import type { AiBridge } from '../../types';
-import { leaks, termPatterns } from './leakGuard';
+import { fuzzySpans, leaks, termPatterns } from './leakGuard';
 import { parseJsonObject, salvageTermObjects } from './modelJson';
 import { termSystem } from './prompts';
 
@@ -29,17 +29,23 @@ export const termSchema = (maxTerms: number) => ({
 /** Longest answer the crossword accepts (e.g. AUTHENTICATION = 14, ACCESSCONTROL = 13). */
 export const MAX_ANSWER = 15;
 
+/** Verb phrases a small model sometimes returns as "terms", e.g. "Uses water". */
+const ACTION_START =
+  /^(uses|produces|takes|contains|provides|converts|carries|transports|holds|accepts|stores|makes|requires|creates|gives|forms|needs|helps)\s/i;
+
 /** Why a term can't be used, or null when it's fine. */
 export function rejectReason(term: string, clue: string, passage: string): string | null {
   const answer = toAnswer(term);
   const words = clue.split(/\s+/).filter(Boolean).length;
   if (!/^[A-Za-z][A-Za-z -]*$/.test(term)) return 'not letters only';
+  if (ACTION_START.test(term)) return 'an action, not a term';
   if (answer.length < 3) return 'answer too short';
   if (answer.length > MAX_ANSWER) return `answer over ${MAX_ANSWER} letters`;
-  const grounded = termPatterns(term).some(p => {
-    p.lastIndex = 0;
-    return p.test(passage);
-  });
+  const grounded =
+    termPatterns(term).some(p => {
+      p.lastIndex = 0;
+      return p.test(passage);
+    }) || fuzzySpans(passage, term).length > 0; // photo OCR typos: "thylakolds"
   if (!grounded) return 'not in the notes';
   if (words < 4) return 'clue too short';
   if (words > 22) return 'clue too long';

@@ -1,0 +1,19 @@
+Chapter 1: Foundations of IT Audit
+
+An IT audit is an independent review of an organization's information systems. Its goal is to give management and the board assurance that systems protect assets, keep data accurate, and support business goals. Assurance means a reasonable, not absolute, level of confidence that something works as intended.
+
+Auditors begin with risk. A risk is the chance that an event will stop the organization from meeting its objectives. High-risk areas, such as payroll or online payments, receive more audit time than low-risk ones.
+
+Auditors also judge materiality. Materiality is the size or nature of an error that would change the decision of a reasonable user of the information. A small rounding error is rarely material, but a missing approval on a large transfer may be.
+
+Many organizations use COBIT, a framework from ISACA for the governance and management of enterprise IT. It links IT processes to business goals and gives auditors a common set of control objectives.
+
+A key control is segregation of duties. No single person should be able to request, approve, and record the same transaction. Splitting these tasks makes fraud harder, because fraud would then require two or more people to work together.
+
+Auditors cannot check every transaction, so they use sampling: testing a selected portion of a population and drawing conclusions about the whole. Statistical methods let the auditor measure how confident they can be in the result.
+
+Every conclusion must rest on evidence. Evidence is the information an auditor collects, such as system logs, screenshots, interview notes, and re-performed calculations. Evidence produced directly by the auditor is more reliable than evidence provided by the client.
+
+Systems should keep an audit trail, a chronological record of who did what and when. Without an audit trail, unauthorized changes may go unnoticed.
+
+Finally, auditors check data protection controls. Encryption turns readable data into a coded form so that only people with the correct key can read it. A regular backup lets the organization recover its data after a failure or a ransomware attack.
