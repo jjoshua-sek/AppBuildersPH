@@ -7,7 +7,7 @@ import com.facebook.react.uimanager.ViewManager
 
 /** Registered by hand in MainApplication.kt (app code is not autolinked). */
 class OcrPackage : ReactPackage {
-  override fun createNativeModules(c: ReactApplicationContext): List<NativeModule> = listOf(OcrModule(c))
+  override fun createNativeModules(c: ReactApplicationContext): List<NativeModule> = listOf(OcrModule(c), NotesFilesModule(c))
 
   override fun createViewManagers(c: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }

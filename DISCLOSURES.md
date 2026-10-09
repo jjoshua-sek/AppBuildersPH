@@ -27,7 +27,16 @@ Why this model: [`docs/benchmarks.md`](docs/benchmarks.md).
 
 ## Cloud APIs at runtime
 
-**None.** All AI runs on the phone. The release build has no INTERNET permission, and `src/services/net/netCounter.ts` counts every `fetch`, `XMLHttpRequest` and `WebSocket` attempt; the Proof panel shows the count, which stays at 0.
+**None for the AI.** Every model runs on the phone, and nothing in the study loop (ingest, games, tutor, "why it matters") needs a network. The release build has no INTERNET permission, and `src/services/net/netCounter.ts` counts every `fetch`, `XMLHttpRequest` and `WebSocket` attempt; the Proof panel shows the count, which stays at 0.
+
+**Optional school sync (off by default).** The School Planner can connect a Google Classroom or Microsoft Teams account to pull assignments into an offline task list. It only runs after the student signs in, and only when a network is available; the cached list and reminders work offline. It calls:
+
+| Service | Endpoint | Used for |
+|---|---|---|
+| Google Classroom API | `classroom.googleapis.com`, Google Sign-In (`play-services-auth`) | Courses, coursework, announcements |
+| Microsoft Graph | `graph.microsoft.com`, Microsoft identity platform via AppAuth | Teams assignments and tasks |
+
+These calls are made from native Android code, so the JS cloud-call counter does not see them. The demo is run without a school account connected.
 
 ## Libraries in the app
 
@@ -49,6 +58,10 @@ Why this model: [`docs/benchmarks.md`](docs/benchmarks.md).
 | react-native-safe-area-context | 5.10.1 | MIT |
 | lucide-react-native (icons) | 1.52.0 | ISC |
 | @react-native/new-app-screen | 0.87.1 | MIT |
+| @react-native-community/blur | 4.4.1 | MIT |
+| net.openid:appauth (Android, school sync sign-in) | 0.11.1 | Apache-2.0 |
+| com.google.android.gms:play-services-auth (Android, Google Classroom sign-in) | 22.0.0 | Android SDK License |
+| androidx.work:work-runtime (Android, background sync and reminders) | 2.10.1 | Apache-2.0 |
 
 ## Development tools (not shipped in the app)
 
@@ -62,14 +75,26 @@ Why this model: [`docs/benchmarks.md`](docs/benchmarks.md).
 |---|---|
 | Gemini | First draft of the product spec |
 | Claude (incl. Claude Code) | Spec review and team plan (`docs/`), app scaffold, runtime, ingest and review work in several PRs (commits marked "Co-authored-by: Claude") |
-| Kiro | Part D: README, benchmarks write-up, the TutorSheet screen, the 50-attempt leak gate and this file |
+| Kiro | Part D: README, benchmarks write-up, a TutorSheet prototype, the 50-attempt leak gate and this file |
+| ChatGPT | Generated every image in the app (see Images below) |
 | TODO | Add any other AI tool a teammate used (e.g. Devin, Copilot, ChatGPT) |
 
 Every AI-written change was reviewed, tested and committed by a team member, through pull requests.
 
 ## Images and other assets
 
-The app on `main` uses no third-party images. If the UI mockup's images (logo, mascot, illustrations, backgrounds, streak flames) are ported from `ui/expo-preview`, list each one here with who made it and whether it was AI-generated (see #18).
+Every image in the app was **AI-generated with ChatGPT** for this project. No stock or third-party artwork is used.
+
+| File | What it is |
+|---|---|
+| `src/assets/images/logo-backpack.png` | App logo |
+| `src/assets/images/mascot-robot.png` (also `android/app/src/main/res/drawable-nodpi/tutor_bubble_robot.png`) | Tutor mascot |
+| `src/assets/images/illustration-book.png` | Home illustration |
+| `src/assets/images/bg-cabin-night.jpg`, `bg-landscape.jpg` | Backgrounds |
+| `src/assets/images/flames/flame-spark.png`, `flame-building.png`, `flame-blazing.png`, `flame-legendary.png` | Streak flames |
+| `src/assets/images/sample-notes.jpg` | Sample handout photo |
+
+Icons come from lucide-react-native (ISC), listed above.
 
 ## Pre-existing code
 

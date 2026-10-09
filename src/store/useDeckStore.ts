@@ -130,6 +130,7 @@ export function startIngest(
   running = (async () => {
     try {
       await dbReady;
+      if (state.dbError) throw new Error(state.dbError);
       const res = await ingest(
         bridge,
         profile,
@@ -137,14 +138,14 @@ export function startIngest(
         progress => set({ progress, currentDocId: progress.docId }),
         token,
       );
-      // Keep the last progress (it has the counts); mark it cancelled if stopped early.
+      // Always keep a terminal summary, including cancellation before the first chunk.
       set({
         status: 'done',
         currentDocId: res.docId,
         lastIngestMs: res.ms,
-        progress: state.progress && {
-          ...state.progress,
-          cancelled: res.cancelled,
+        progress: {
+          ...res,
+          chunk: res.cancelled ? state.progress?.chunk ?? 0 : res.total,
         },
       });
       why = fillWhyCards(bridge, profile, res.docId);
