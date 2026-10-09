@@ -1,4 +1,4 @@
-import { SAMPLE_TERMS } from '../../../assets/sample';
+import { SAMPLE_TERMS, SAMPLE_TEXT } from '../../../assets/sample';
 import type { AiBridge, CompleteOptions } from '../../../types';
 import { termPatterns } from '../../ai/leakGuard';
 import { createMockBridge } from '../../ai/mockBridge';
@@ -9,11 +9,7 @@ import { PROFILES } from '../../device/deviceProfile';
 import { chunk } from '../chunker';
 import { fillWhyCards, ingest, READY_TERMS, type Progress } from '../pipeline';
 
-const fs = require('fs');
-const TEXT: string = fs.readFileSync(
-  'src/assets/sample/it_audit_ch1.txt',
-  'utf8',
-); // jest runs from the repo root
+const TEXT = SAMPLE_TEXT;
 const P = PROFILES['ios-metal']; // 180-word chunks, like the sample's chunk ids
 
 const inText = (term: string, text: string) =>

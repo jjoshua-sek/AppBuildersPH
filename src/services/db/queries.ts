@@ -116,6 +116,30 @@ export async function saveWhy(termId: string, card: WhyCard): Promise<void> {
   );
 }
 
+export type DeckSummary = {
+  id: string;
+  title: string;
+  source: string;
+  created_at: number;
+  terms: number; // terms selected for the crossword
+};
+
+/** Every ingested document, newest first, with its crossword size. */
+export async function getDocuments(): Promise<DeckSummary[]> {
+  const { rows } = await getDb().execute(
+    `SELECT d.id, d.title, d.source, d.created_at,
+       (SELECT count(*) FROM terms t WHERE t.doc_id = d.id AND t.selected = 1) AS terms
+     FROM documents d ORDER BY d.created_at DESC, d.rowid DESC`,
+  );
+  return rows.map(r => ({
+    id: String(r.id),
+    title: String(r.title),
+    source: String(r.source),
+    created_at: Number(r.created_at),
+    terms: Number(r.terms),
+  }));
+}
+
 /* ---- Ingest writes (Lane B's pipeline only) ---- */
 
 export async function insertDocument(d: {

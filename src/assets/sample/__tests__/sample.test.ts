@@ -1,4 +1,4 @@
-import { SAMPLE_TERMS } from '..';
+import { SAMPLE_TERMS, SAMPLE_TEXT } from '..';
 import { leaks, termPatterns } from '../../../services/ai/leakGuard';
 import { toAnswer } from '../../../services/ai/termExtractor';
 import {
@@ -7,11 +7,7 @@ import {
 } from '../../../services/game/crossword';
 import { chunk } from '../../../services/ingest/chunker';
 
-const fs = require('fs');
-const text: string = fs.readFileSync(
-  'src/assets/sample/it_audit_ch1.txt',
-  'utf8',
-); // jest runs from the repo root;
+const text = SAMPLE_TEXT;
 const chunks = chunk(text);
 
 describe('sample handout', () => {
