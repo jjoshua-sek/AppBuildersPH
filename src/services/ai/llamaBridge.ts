@@ -5,6 +5,7 @@ import type { AiBridge, CompleteOptions } from '../../types';
 import { profileFor, type Profile } from '../device/deviceProfile';
 import { EMB_PATH, GEN_PATH, checkModels, toFileUri } from './modelFiles';
 import { WorkQueue } from './workQueue';
+import { stripTurnMarkers, turnMarkerFilter } from './chatText';
 
 const STOP = ['<|im_end|>', '<end_of_turn>', '<|eot_id|>', '<|endoftext|>'];
 
@@ -26,6 +27,7 @@ export const stats = {
   lastPromptTps: 0,
   lastTokensCached: 0,
   embedDims: 0,
+  chatTemplate: '' as '' | 'jinja' | 'built-in',
   lastIngestMs: 0,
 };
 
@@ -74,6 +76,8 @@ export async function loadModels(
   stats.gpu = gen.gpu;
   stats.reasonNoGPU = gen.reasonNoGPU ?? '';
   stats.devices = gen.devices ?? [];
+  // Jinja: llama.rn applies the GGUF's own chat template. Built-in: its fallback format.
+  stats.chatTemplate = gen.isJinjaSupported() ? 'jinja' : 'built-in';
 
   if (!emb) {
     onProgress({ stage: 'embedder', pct: 0 });
@@ -103,6 +107,7 @@ export const bridge: AiBridge = {
       if (!gen) throw new Error('LLM not loaded');
       const t0 = Date.now();
       let tFirst = 0;
+      const emit = turnMarkerFilter(t => o.onToken?.(t));
       const res = await gen.completion(
         {
           messages: o.messages,
@@ -110,20 +115,28 @@ export const bridge: AiBridge = {
           temperature: o.temperature ?? 0.4,
           stop: STOP,
           enable_thinking: false, // Qwen3.5; ignored by other templates
+          // End the prompt with the model's turn marker; without it Gemma writes
+          // "<start_of_turn>model" itself and stops following the instructions.
+          add_generation_prompt: true,
           ...(o.jsonSchema
-            ? { response_format: { type: 'json_schema', json_schema: { schema: o.jsonSchema } } }
+            ? {
+                response_format: { type: 'json_schema', json_schema: { schema: o.jsonSchema } },
+                // Also as a raw grammar: llama.rn's built-in (non-Jinja) template path
+                // ignores response_format, so the JSON was not constrained on the Infinix.
+                json_schema: JSON.stringify(o.jsonSchema),
+              }
             : {}),
         },
         d => {
           if (!tFirst) tFirst = Date.now();
-          o.onToken?.(d.token);
+          emit(d.token);
         },
       );
       stats.lastTtftMs = tFirst ? tFirst - t0 : 0;
       stats.lastTps = res.timings?.predicted_per_second ?? 0;
       stats.lastPromptTps = res.timings?.prompt_per_second ?? 0;
       stats.lastTokensCached = res.tokens_cached ?? 0;
-      return res.text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      return stripTurnMarkers(res.text.replace(/<think>[\s\S]*?<\/think>/g, '')).trim();
     }),
 
   stopGeneration: () => {

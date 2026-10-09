@@ -106,7 +106,7 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
     <ScrollView style={ui.screen} contentContainerStyle={ui.content}>
       <Text style={ui.title}>DevBench</Text>
       <Text style={ui.muted}>
-        {stats.device} · {stats.tier} · {stats.modelName}
+        {stats.device} · {stats.tier} · {stats.modelName} · template: {stats.chatTemplate}
       </Text>
 
       <Button title="1. Speed (llama-bench)" onPress={speedTest} disabled={busy} />
