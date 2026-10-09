@@ -41,6 +41,7 @@ export async function benchExtraction(
     parsed += ok ? 1 : 0;
     validTerms += terms.length;
     log(`chunk ${i + 1}: ${ok ? 'JSON ok' : 'JSON FAILED'}, ${terms.length} valid terms, ${(ms / 1000).toFixed(1)} s`);
+    if (terms.length) log(`  kept: ${terms.map(t => t.term).join(', ')}`);
     for (const r of reviewTerms(raw, chunks[i]).filter(x => x.reason)) {
       log(`  rejected "${r.term}": ${r.reason}`);
     }

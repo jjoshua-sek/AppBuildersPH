@@ -1,5 +1,5 @@
 import type { AiBridge } from '../../types';
-import { leaks, termPatterns } from './leakGuard';
+import { fuzzySpans, leaks, termPatterns } from './leakGuard';
 import { parseJsonObject, salvageTermObjects } from './modelJson';
 import { termSystem } from './prompts';
 
@@ -36,10 +36,11 @@ export function rejectReason(term: string, clue: string, passage: string): strin
   if (!/^[A-Za-z][A-Za-z -]*$/.test(term)) return 'not letters only';
   if (answer.length < 3) return 'answer too short';
   if (answer.length > MAX_ANSWER) return `answer over ${MAX_ANSWER} letters`;
-  const grounded = termPatterns(term).some(p => {
-    p.lastIndex = 0;
-    return p.test(passage);
-  });
+  const grounded =
+    termPatterns(term).some(p => {
+      p.lastIndex = 0;
+      return p.test(passage);
+    }) || fuzzySpans(passage, term).length > 0; // photo OCR typos: "thylakolds"
   if (!grounded) return 'not in the notes';
   if (words < 4) return 'clue too short';
   if (words > 22) return 'clue too long';

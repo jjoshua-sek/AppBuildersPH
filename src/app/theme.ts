@@ -41,4 +41,5 @@ export const ui = StyleSheet.create({
   stack: { gap: 10 },
   track: { height: 6, backgroundColor: colors.border, borderRadius: 3, marginTop: 10 },
   fill: { height: 6, borderRadius: 3, backgroundColor: colors.accent },
+  input: { minHeight: 120, textAlignVertical: 'top' },
 });
