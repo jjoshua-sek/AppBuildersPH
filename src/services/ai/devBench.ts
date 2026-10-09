@@ -1,7 +1,7 @@
 import type { AiBridge } from '../../types';
 import { leaks, maskTerm } from './leakGuard';
 import { tutorSystem } from './prompts';
-import { termSchema, validateTerms } from './termExtractor';
+import { reviewTerms, termSchema, validateTerms } from './termExtractor';
 import { termSystem } from './prompts';
 import { askTutor } from './tutor';
 import { parseJsonObject } from './modelJson';
@@ -41,6 +41,9 @@ export async function benchExtraction(
     parsed += ok ? 1 : 0;
     validTerms += terms.length;
     log(`chunk ${i + 1}: ${ok ? 'JSON ok' : 'JSON FAILED'}, ${terms.length} valid terms, ${(ms / 1000).toFixed(1)} s`);
+    for (const r of reviewTerms(raw, chunks[i]).filter(x => x.reason)) {
+      log(`  rejected "${r.term}": ${r.reason}`);
+    }
     if (!ok || !terms.length) {
       // Show what the model actually wrote, so a failure can be diagnosed from the phone.
       const flat = raw.replace(/\s+/g, ' ');
