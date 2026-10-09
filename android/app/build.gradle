@@ -84,6 +84,19 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        manifestPlaceholders += [appAuthRedirectScheme: "com.backpacktutor"]
+        externalNativeBuild {
+            cmake {
+                // Hash long generated object paths before they exceed Ninja's Windows limit.
+                arguments "-DCMAKE_OBJECT_PATH_MAX=250"
+            }
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            // Leave room for codegen target directories in long Windows checkouts.
+            buildStagingDirectory file("../../../.cxx")
+        }
     }
     signingConfigs {
         debug {
@@ -114,6 +127,9 @@ dependencies {
     // On-device OCR. The BUNDLED model (works offline on a fresh install);
     // never the play-services-mlkit-* artifact, which downloads its model on first use.
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("net.openid:appauth:0.11.1")
+    implementation("androidx.work:work-runtime:2.10.1")
+    implementation("com.google.android.gms:play-services-auth:22.0.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

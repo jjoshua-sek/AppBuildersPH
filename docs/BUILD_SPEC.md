@@ -5,9 +5,11 @@
 | | |
 |---|---|
 | Repo | `github.com/jjoshua-sek/AppBuildersPH` |
-| Platform | Android (arm64) **and iOS**, bare React Native CLI 0.87, New Architecture |
+| Platform | Android (arm64), bare React Native CLI 0.87, New Architecture. iOS code exists but is not built or tested (see below) |
 | Hackathon theme | Local AI: "useful when the cloud disappears" |
 | Status | **This is the build spec.** v4 retargets the app to the three phones we demo on (§0.4, §5). The pure-logic modules are implemented and unit-tested in `src/services/` (§8). Demo plan: `docs/DEVICES_AND_DEMO.md`. Work split: `docs/TEAM_PLAN.md`. |
+
+> **Update: iPhones dropped.** The team has no iPhone available, so the Infinix Hot 50 Pro+ is the only demo and test phone. The iPhone 13 Pro Max / iPhone 11 rows, the `ios-metal` / `ios-cpu` tiers and the iOS demo beats below are historical; skip them. Current device plan: `docs/DEVICES_AND_DEMO.md`.
 
 ---
 

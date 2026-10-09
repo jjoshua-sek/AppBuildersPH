@@ -1,6 +1,7 @@
 package com.backpacktutor
 
 import android.os.Bundle
+import android.content.Intent
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -14,6 +15,10 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String = "BackpackTutor"
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+  }
 
   // react-native-screens: restore screens safely if Android recreates the activity.
   override fun onCreate(savedInstanceState: Bundle?) {

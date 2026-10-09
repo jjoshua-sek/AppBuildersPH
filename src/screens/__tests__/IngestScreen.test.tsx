@@ -8,7 +8,7 @@ import { memoryDb } from '../../services/db/testing/memoryDb';
 import { PROFILES } from '../../services/device/deviceProfile';
 import type { AiBridge } from '../../types';
 import { getTerms } from '../../services/db/queries';
-import { deckStore, startIngest } from '../../store/useDeckStore';
+import { deckStore, resetIngest, startIngest } from '../../store/useDeckStore';
 import { IngestScreen, MIN_WORDS, progressLine } from '../IngestScreen';
 
 const { act } = ReactTestRenderer;
@@ -46,8 +46,10 @@ const labelOf = (id: string) =>
     .map(n => [n.props.children].flat().join(''))
     .join('');
 
+/** The title and notes fields live in the "Check the text" dialog, so open it unless told not to. */
 async function render(
   props: Partial<React.ComponentProps<typeof IngestScreen>> = {},
+  openReview = true,
 ) {
   const onPlay = jest.fn();
   await act(async () => {
@@ -61,6 +63,7 @@ async function render(
       />,
     );
   });
+  if (openReview) await act(async () => byId('review').props.onPress());
   return onPlay;
 }
 
@@ -112,7 +115,7 @@ it('ingests the sample handout and plays the new deck', async () => {
   });
   await until(() => deckStore.getState().status === 'done');
   expect(textOf('progress-line')).toMatch(
-    /^Done · \d+ terms found, \d+ in your puzzle$/,
+    /^Done · \d+ terms ready for Wordscape$/,
   );
   expect(deckStore.getState().decks[0]).toMatchObject({
     title: SAMPLE_TITLE,
@@ -178,7 +181,9 @@ it('shows an ingest error', async () => {
     byId('generate').props.onPress();
   });
   await until(() => has('error'));
-  expect(textOf('error')).toContain('Embedder not loaded');
+  expect(textOf('progress-line')).toContain('Embedder not loaded');
+  expect(textOf('progress-line')).toContain('Your notes are still here');
+  expect(labelOf('generate')).toBe('Try again');
   expect(disabled('play')).toBe(true);
 });
 
@@ -210,6 +215,110 @@ it('goes back', async () => {
   expect(onBack).toHaveBeenCalled();
 });
 
+it.each([0, 1, 2, 3])(
+  'shows feedback for a 400-word ingest with %i usable terms',
+  async count => {
+    const mock = createMockBridge();
+    const terms = SAMPLE_TERMS.slice(0, count);
+    const notes = Array.from(
+      { length: 400 },
+      (_, i) => ['audit', 'trail', 'materiality', 'evidence', 'notes'][i % 5],
+    ).join(' ');
+    const onPlay = await render({
+      bridge: {
+        ...mock,
+        complete: async o =>
+          (o.jsonSchema as any)?.properties?.terms
+            ? JSON.stringify({ terms })
+            : mock.complete(o),
+      },
+    });
+    await act(async () => byId('notes').props.onChangeText(notes));
+    await act(async () => byId('review-done').props.onPress());
+    await act(async () => {
+      byId('generate').props.onPress();
+    });
+    await until(() => deckStore.getState().status === 'done');
+    expect(deckStore.getState().progress?.found).toBe(count);
+    expect(textOf('progress-line')).toContain(
+      count < 3 ? 'At least 3 terms are needed to play' : 'ready for Wordscape',
+    );
+    expect(disabled('play')).toBe(count < 3);
+    if (count === 3) {
+      await act(async () => byId('play').props.onPress());
+      expect(onPlay).toHaveBeenCalledWith(deckStore.getState().currentDocId);
+    }
+    expect(byId('review').props.disabled).not.toBe(true);
+  },
+);
+
+it('shows a status immediately while a 400-word ingest is waiting for the model', async () => {
+  const mock = createMockBridge();
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  await render({
+    bridge: {
+      ...mock,
+      embed: async text => {
+        await waiting;
+        return mock.embed(text);
+      },
+      complete: async () => JSON.stringify({ terms: [] }),
+    },
+  });
+  await act(async () => byId('notes').props.onChangeText('notes '.repeat(400)));
+  await act(async () => byId('review-done').props.onPress());
+  await act(async () => {
+    byId('generate').props.onPress();
+  });
+  expect(textOf('progress-line')).toBe('Reading chunk 1…');
+  expect(disabled('play')).toBe(true);
+  release();
+  await until(() => deckStore.getState().status === 'done');
+  expect(textOf('progress-line')).toContain('0 usable terms');
+});
+
+it('keeps 400 words editable and offers retry when extraction fails', async () => {
+  const mock = createMockBridge();
+  const notes = 'notes '.repeat(400);
+  let failing = true;
+  await render({
+    bridge: {
+      ...mock,
+      complete: async () => {
+        if (failing) throw new Error('Model could not read this passage');
+        return JSON.stringify({ terms: [] });
+      },
+    },
+  });
+  await act(async () => byId('notes').props.onChangeText(notes));
+  await act(async () => byId('review-done').props.onPress());
+  await act(async () => {
+    byId('generate').props.onPress();
+  });
+  await until(() => deckStore.getState().status === 'error');
+  expect(textOf('progress-line')).toContain(
+    'Model could not read this passage',
+  );
+  expect(has('error')).toBe(true);
+  expect(labelOf('generate')).toBe('Try again');
+  expect(disabled('generate')).toBe(false);
+  expect(disabled('play')).toBe(true);
+  await act(async () => byId('review').props.onPress());
+  expect(byId('notes').props.value).toBe(notes);
+  expect(byId('notes').props.editable).toBe(true);
+  await act(async () => byId('review-done').props.onPress());
+  failing = false;
+  await act(async () => {
+    byId('generate').props.onPress();
+  });
+  await until(() => deckStore.getState().status === 'done');
+  expect(has('error')).toBe(false);
+  expect(textOf('progress-line')).toContain('0 usable terms');
+});
+
 describe('adding pages to a deck', () => {
   const words = SAMPLE_TEXT.split(/\s+/);
   const PAGE1 = words.slice(0, 170).join(' ');
@@ -228,7 +337,6 @@ describe('adding pages to a deck', () => {
 
     await act(async () => byId('add-page').props.onPress());
     expect(byId('notes').props.value).toBe('');
-    expect(has('title')).toBe(false); // the deck already has one
     expect(textOf('append-target')).toMatch(
       /^to Chapter 1 · \d+ terms? so far$/,
     );
@@ -250,26 +358,26 @@ describe('adding pages to a deck', () => {
       text: SAMPLE_TEXT,
     });
     const docId = deckStore.getState().currentDocId!;
-    const onPlay = await render({ appendTo: docId });
+    resetIngest(); // a freshly opened screen starts from idle
+    const onPlay = await render({ appendTo: docId }, false);
     expect(textOf('append-target')).toMatch(/^to Ch 1 · /);
     expect(disabled('play')).toBe(false);
     await act(async () => byId('play').props.onPress());
     expect(onPlay).toHaveBeenCalledWith(docId);
     await act(async () => byId('new-deck').props.onPress());
     expect(has('append-target')).toBe(false);
-    expect(has('title')).toBe(true);
   });
 
   it('offers Review terms once the deck is read', async () => {
     const onReview = jest.fn();
     await render({ onReview });
-    expect(has('review')).toBe(false);
+    expect(has('review-terms')).toBe(false);
     await act(async () => byId('sample').props.onPress());
     await act(async () => {
       byId('generate').props.onPress();
     });
     await until(() => deckStore.getState().status === 'done');
-    await act(async () => byId('review').props.onPress());
+    await act(async () => byId('review-terms').props.onPress());
     expect(onReview).toHaveBeenCalledWith(deckStore.getState().currentDocId);
   });
 });
@@ -295,23 +403,59 @@ describe('progressLine', () => {
   it('summarizes the result', () => {
     expect(
       progressLine('done', { ...p, chunk: 3, found: 9, selected: 8 }),
-    ).toBe('Done · 9 terms found, 8 in your puzzle');
+    ).toBe('Done · 9 terms ready for Wordscape');
     expect(progressLine('done', { ...p, found: 1, selected: 1 })).toBe(
-      'Done · only 1 term found. Add more notes or snap another page.',
+      'Done · 1 usable term found. At least 3 terms are needed to play. Add more notes or snap another page, then generate again.',
     );
     expect(progressLine('done', { ...p, found: 2, selected: 2 })).toBe(
-      'Done · only 2 terms found. Add more notes or snap another page.',
+      'Done · 2 usable terms found. At least 3 terms are needed to play. Add more notes or snap another page, then generate again.',
     );
     expect(progressLine('done', { ...p, found: 3, selected: 3 })).toBe(
-      'Done · 3 terms found, 3 in your puzzle',
+      'Done · 3 terms ready for Wordscape',
     );
   });
   it('says when it was stopped or skipped chunks', () => {
     expect(progressLine('done', { ...p, cancelled: true })).toBe(
-      'Stopped after 1/3 chunks · 4 terms found, 4 in your puzzle',
+      'Stopped after 1/3 chunks · 4 terms ready for Wordscape',
     );
     expect(
       progressLine('done', { ...p, chunk: 3, failedChunks: 1, selected: 6 }),
-    ).toBe('Done · 4 terms found, 6 in your puzzle · 1 chunk skipped');
+    ).toBe('Done · 4 terms ready for Wordscape · 1 chunk skipped');
   });
+});
+
+it('keeps the editor out of the screen until Check the text is tapped', async () => {
+  await render({}, false);
+  expect(has('notes')).toBe(false);
+  expect(has('title')).toBe(false);
+  await act(async () => byId('review').props.onPress());
+  expect(has('notes')).toBe(true);
+  expect(has('title')).toBe(true);
+});
+
+it('keeps typed text when the dialog is closed and reopened, and shows the word count', async () => {
+  await render({}, false);
+  await act(async () => byId('review').props.onPress());
+  await act(async () => byId('notes').props.onChangeText('one two three'));
+  await act(async () => byId('review-done').props.onPress());
+  await act(async () => byId('review').props.onPress());
+  expect(byId('notes').props.value).toBe('one two three');
+  expect(textOf('word-count')).toBe('3 words');
+});
+
+it('makes the fields read-only while reading', async () => {
+  const fast = bridge();
+  const slow: AiBridge = {
+    ...fast,
+    embed: t => new Promise(r => setTimeout(() => r(fast.embed(t)), 1)),
+  };
+  await render({ bridge: slow });
+  await act(async () => byId('sample').props.onPress());
+  await act(async () => {
+    byId('generate').props.onPress();
+  });
+  expect(byId('notes').props.editable).toBe(false);
+  expect(byId('title').props.editable).toBe(false);
+  await act(async () => byId('stop').props.onPress());
+  await until(() => deckStore.getState().status === 'done');
 });

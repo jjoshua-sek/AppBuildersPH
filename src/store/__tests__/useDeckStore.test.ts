@@ -176,6 +176,11 @@ describe('openDecks', () => {
       },
     });
     expect(deckStore.getState().dbError).toBe('disk full');
+    await startIngest(bridge(), P, doc);
+    expect(deckStore.getState()).toMatchObject({
+      status: 'error',
+      error: 'disk full',
+    });
   });
 
   it('makes ingest wait until the database is open', async () => {
@@ -197,6 +202,30 @@ describe('openDecks', () => {
     await ingesting;
     expect(deckStore.getState().status).toBe('done');
   });
+});
+
+it('keeps a terminal summary when stopped before the first chunk', async () => {
+  const db = memoryDb();
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const opening = openDecks({
+    execute: async (sql, params) => {
+      await gate;
+      return db.execute(sql, params);
+    },
+  });
+  const ingesting = startIngest(bridge(), P, doc);
+  cancelIngest();
+  release();
+  await opening;
+  await ingesting;
+  expect(deckStore.getState()).toMatchObject({
+    status: 'done',
+    progress: { chunk: 0, found: 0, selected: 0, cancelled: true },
+  });
+  expect(canPlay(deckStore.getState())).toBe(false);
 });
 
 it('cancelIngest stops after the chunk in progress and keeps a playable result', async () => {

@@ -1,5 +1,11 @@
 import React, { useId } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  processColor,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 type Point = { x: number; y: number };
@@ -27,23 +33,47 @@ export function Gradient({
   const id = `g${useId().replace(/:/g, '')}`;
   const last = Math.max(1, colors.length - 1);
   return (
-    <View style={style}>
-      <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
-        <Defs>
-          <LinearGradient
-            id={id}
-            x1={start.x}
-            y1={start.y}
-            x2={end.x}
-            y2={end.y}
-          >
-            {colors.map((c, i) => (
-              <Stop key={i} offset={locations?.[i] ?? i / last} stopColor={c} />
-            ))}
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill={`url(#${id})`} />
-      </Svg>
+    <View style={[style, { overflow: 'hidden' }]}>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Svg
+          pointerEvents="none"
+          width="100%"
+          height="100%"
+          style={StyleSheet.absoluteFill}
+          preserveAspectRatio="none"
+        >
+          <Defs>
+            <LinearGradient
+              id={id}
+              x1={`${start.x * 100}%`}
+              y1={`${start.y * 100}%`}
+              x2={`${end.x * 100}%`}
+              y2={`${end.y * 100}%`}
+            >
+              {colors.map((c, i) => {
+                // SVG gradient extraction replaces color alpha with stopOpacity.
+                const packed = processColor(c);
+                const numeric = typeof packed === 'number';
+                return (
+                  <Stop
+                    key={i}
+                    offset={locations?.[i] ?? i / last}
+                    stopColor={
+                      numeric
+                        ? `#${(packed & 0xffffff)
+                            .toString(16)
+                            .padStart(6, '0')}`
+                        : c
+                    }
+                    stopOpacity={numeric ? (packed >>> 24) / 255 : 1}
+                  />
+                );
+              })}
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill={`url(#${id})`} />
+        </Svg>
+      </View>
       {children}
     </View>
   );

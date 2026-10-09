@@ -56,7 +56,7 @@ export type TutorSheetProps = {
 /** Lane C writes attempts through lane B's helper. */
 export type Attempt = {
   term_id: string;
-  mode: 'crossword' | 'daily';
+  mode: 'crossword' | 'daily' | 'wordscape';
   correct: 0 | 1;
   hints_used: number;
   ts: number;

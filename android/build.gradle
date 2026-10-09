@@ -19,3 +19,24 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// llama.rn's JNI target names also exceed Windows limits inside node_modules.
+// Configure its native output from the project so dependency reinstalls keep the fix.
+project(":llama.rn") {
+    plugins.withId("com.android.library") {
+        android {
+            externalNativeBuild {
+                cmake {
+                    buildStagingDirectory rootProject.file("../../.cxx/llama")
+                }
+            }
+            defaultConfig {
+                externalNativeBuild {
+                    cmake {
+                        arguments "-DCMAKE_OBJECT_PATH_MAX=250"
+                    }
+                }
+            }
+        }
+    }
+}
