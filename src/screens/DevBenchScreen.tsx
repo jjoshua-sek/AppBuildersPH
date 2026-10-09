@@ -2,8 +2,18 @@ import React, { useState } from 'react';
 import { Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { colors, ui } from '../app/theme';
 import { Button } from '../components/Button';
-import { BENCH_CHUNKS, LEAK_MESSAGES, LEAK_TERMS } from '../assets/sample/benchData';
-import { benchLlm, bridge, profile, reloadLlm, stats } from '../services/ai/llamaBridge';
+import {
+  BENCH_CHUNKS,
+  LEAK_MESSAGES,
+  LEAK_TERMS,
+} from '../assets/sample/benchData';
+import {
+  benchLlm,
+  bridge,
+  profile,
+  reloadLlm,
+  stats,
+} from '../services/ai/llamaBridge';
 import { chunk, cleanOcr } from '../services/ingest/chunker';
 import {
   benchExtraction,
@@ -18,7 +28,13 @@ import {
  * Hour-1 benchmark (BUILD_SPEC §5.3). Run it on every phone for every candidate
  * model, then copy the report into docs/benchmarks.md.
  */
-export function DevBenchScreen({ onBack }: { onBack(): void }) {
+export function DevBenchScreen({
+  onBack,
+  onUiCheck,
+}: {
+  onBack(): void;
+  onUiCheck?(): void;
+}) {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [speed, setSpeed] = useState<SpeedResult[]>([]);
@@ -40,8 +56,15 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
   const speedTest = run(async () => {
     say('llama-bench: 128 prompt tokens, 64 generated…');
     const r = await benchLlm();
-    setSpeed(s => [...s, { threads: stats.nThreads, gpuLayers: stats.gpu ? 99 : 0, ...r }]);
-    say(`prompt ${r.promptTps.toFixed(1)} tok/s, generation ${r.genTps.toFixed(1)} tok/s`);
+    setSpeed(s => [
+      ...s,
+      { threads: stats.nThreads, gpuLayers: stats.gpu ? 99 : 0, ...r },
+    ]);
+    say(
+      `prompt ${r.promptTps.toFixed(1)} tok/s, generation ${r.genTps.toFixed(
+        1,
+      )} tok/s`,
+    );
   });
 
   const threadSweep = run(async () => {
@@ -85,9 +108,22 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
   });
 
   const leakTest = run(async () => {
-    const cases = LEAK_TERMS.slice(0, 4).map(t => ({ ...t, passage: BENCH_CHUNKS[t.chunk] }));
-    say(`tutor leak test: ${cases.length} terms × ${LEAK_MESSAGES.length} messages…`);
-    setLeak(await benchLeaks(bridge, cases, LEAK_MESSAGES, { n_predict: profile.tutorTokens }, say));
+    const cases = LEAK_TERMS.slice(0, 4).map(t => ({
+      ...t,
+      passage: BENCH_CHUNKS[t.chunk],
+    }));
+    say(
+      `tutor leak test: ${cases.length} terms × ${LEAK_MESSAGES.length} messages…`,
+    );
+    setLeak(
+      await benchLeaks(
+        bridge,
+        cases,
+        LEAK_MESSAGES,
+        { n_predict: profile.tutorTokens },
+        say,
+      ),
+    );
   });
 
   const report = formatReport({
@@ -106,19 +142,37 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
     <ScrollView style={ui.screen} contentContainerStyle={ui.content}>
       <Text style={ui.title}>DevBench</Text>
       <Text style={ui.muted}>
-        {stats.device} · {stats.tier} · {stats.modelName} · template: {stats.chatTemplate}
+        {stats.device} · {stats.tier} · {stats.modelName} · template:{' '}
+        {stats.chatTemplate}
       </Text>
 
-      <Button title="1. Speed (llama-bench)" onPress={speedTest} disabled={busy} />
+      <Button
+        title="1. Speed (llama-bench)"
+        onPress={speedTest}
+        disabled={busy}
+      />
       {Platform.OS === 'android' && (
-        <Button title="2. Thread sweep 2 / 4 / 6" onPress={threadSweep} disabled={busy} />
+        <Button
+          title="2. Thread sweep 2 / 4 / 6"
+          onPress={threadSweep}
+          disabled={busy}
+        />
       )}
-      <Button title="3. Term extraction (3 chunks)" onPress={extractionTest} disabled={busy} />
-      <Button title="4. Tutor leak test (20 attempts)" onPress={leakTest} disabled={busy} />
+      <Button
+        title="3. Term extraction (3 chunks)"
+        onPress={extractionTest}
+        disabled={busy}
+      />
+      <Button
+        title="4. Tutor leak test (20 attempts)"
+        onPress={leakTest}
+        disabled={busy}
+      />
 
       <Text style={ui.h2}>5. Term extraction on your own text</Text>
       <Text style={ui.muted}>
-        Paste text (e.g. what OCR read from a photo) to see every term kept or rejected, and why.
+        Paste text (e.g. what OCR read from a photo) to see every term kept or
+        rejected, and why.
       </Text>
       <TextInput
         multiline
@@ -128,7 +182,11 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
         placeholderTextColor={colors.muted}
         style={[ui.card, ui.text, ui.input]}
       />
-      <Button title="5. Run on pasted text" onPress={pastedTest} disabled={busy || !pasted.trim()} />
+      <Button
+        title="5. Run on pasted text"
+        onPress={pastedTest}
+        disabled={busy || !pasted.trim()}
+      />
 
       <Text style={ui.h2}>Log</Text>
       <View style={ui.card}>
@@ -139,13 +197,22 @@ export function DevBenchScreen({ onBack }: { onBack(): void }) {
         ))}
       </View>
 
-      <Text style={ui.h2}>Report (long-press to copy into docs/benchmarks.md)</Text>
+      <Text style={ui.h2}>
+        Report (long-press to copy into docs/benchmarks.md)
+      </Text>
       <View style={ui.card}>
         <Text selectable style={ui.mono}>
           {report}
         </Text>
       </View>
 
+      {onUiCheck && (
+        <Button
+          title="6. UI libraries check"
+          onPress={onUiCheck}
+          disabled={busy}
+        />
+      )}
       <Button title="Back" onPress={onBack} disabled={busy} />
     </ScrollView>
   );

@@ -8,6 +8,7 @@ import { SplashScreen } from '../screens/SplashScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProofPanelScreen } from '../screens/ProofPanelScreen';
 import { DevBenchScreen } from '../screens/DevBenchScreen';
+import { UiCheckScreen } from '../screens/UiCheckScreen';
 import { IngestScreen } from '../screens/IngestScreen';
 import { AskNotesScreen } from '../screens/AskNotesScreen';
 import { open } from '@op-engineering/op-sqlite';
@@ -52,7 +53,9 @@ export default function App() {
         ) : route === 'proof' ? (
           <ProofPanelScreen onBack={home} />
         ) : route === 'devbench' ? (
-          <DevBenchScreen onBack={home} />
+          <DevBenchScreen onBack={home} onUiCheck={() => setRoute('uicheck')} />
+        ) : route === 'uicheck' ? (
+          <UiCheckScreen onBack={() => setRoute('devbench')} />
         ) : route === 'ingest' ? (
           <IngestScreen
             bridge={bridge}

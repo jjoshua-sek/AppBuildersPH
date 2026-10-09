@@ -25,3 +25,5 @@ jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn(),
   launchImageLibrary: jest.fn(),
 }));
+// lucide ships .mjs files the RN Jest preset doesn't transform; icons render as nothing in tests.
+jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
