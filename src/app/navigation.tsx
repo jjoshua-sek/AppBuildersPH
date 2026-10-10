@@ -11,7 +11,13 @@ import {
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Gamepad2, House, Layers, User } from 'lucide-react-native';
+import {
+  Gamepad2,
+  House,
+  Layers,
+  MessageCircle,
+  User,
+} from 'lucide-react-native';
 import { brand } from './theme';
 import { bridge, profile } from '../services/ai/llamaBridge';
 import { ocrAvailable, pickAndRead, snapAndRead } from '../services/ingest/ocr';
@@ -25,6 +31,7 @@ import { IngestScreen } from '../screens/IngestScreen';
 import { CrosswordScreen } from '../screens/CrosswordScreen';
 import { WordscapeScreen } from '../screens/WordscapeScreen';
 import { DailyTermScreen } from '../screens/DailyTermScreen';
+import { ChatTutorScreen } from '../screens/ChatTutorScreen';
 import { AskNotesScreen } from '../screens/AskNotesScreen';
 import { ReviewTermsScreen } from '../screens/ReviewTermsScreen';
 import { QuizScreen } from '../screens/QuizScreen';
@@ -54,6 +61,7 @@ export type TabParamList = {
   Home: undefined;
   Decks: undefined;
   Games: undefined;
+  Tutor: undefined;
   Progress: undefined;
 };
 export type Props<T extends keyof RootStackParamList> = NativeStackScreenProps<
@@ -79,6 +87,10 @@ const icon =
   (Icon: typeof House) =>
   ({ color }: { color: string }) =>
     <Icon color={color} size={22} />;
+
+function Chat() {
+  return <ChatTutorScreen bridge={bridge} />;
+}
 
 function Tabs() {
   return (
@@ -108,6 +120,11 @@ function Tabs() {
         name="Games"
         component={GamesScreen}
         options={{ tabBarIcon: icon(Gamepad2) }}
+      />
+      <Tab.Screen
+        name="Tutor"
+        component={Chat}
+        options={{ tabBarIcon: icon(MessageCircle) }}
       />
       <Tab.Screen
         name="Progress"
