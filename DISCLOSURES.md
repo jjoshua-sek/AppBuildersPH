@@ -1,6 +1,6 @@
 # Disclosures
 
-Everything Backpack Tutor uses, as the hackathon rules require. Lines marked **TODO** need a value only a teammate has.
+Everything Backpack Tutor uses, as the hackathon rules require.
 
 ## Models (all run on the phone)
 
@@ -11,19 +11,14 @@ Everything Backpack Tutor uses, as the hackathon rules require. Lines marked **T
 | OCR (Android) | Google ML Kit Text Recognition v2, Latin, **bundled** in the app (`com.google.mlkit:text-recognition:16.0.1`) | Google Maven | built in | [ML Kit Terms](https://developers.google.com/ml-kit/terms) |
 | OCR (iOS, code only; no iOS build is shipped) | Apple Vision (`VNRecognizeTextRequest`) | iOS SDK | built in | Apple SDK license |
 
-Model file checksums (`scripts/push-models.sh` prints them when it pushes the models):
-
-| File on the phone | SHA256 |
-|---|---|
-| `gen.gguf` (Gemma 3 1B IT Q4_0) | TODO |
-| `emb.gguf` (arctic-embed-xs Q8_0) | TODO |
+The model files are not in the repository. `scripts/push-models.sh` copies them to the phone as `gen.gguf` and `emb.gguf` and prints their SHA256 checksums.
 
 Why this model: [`docs/benchmarks.md`](docs/benchmarks.md).
 
 ## Runtime
 
 - **llama.rn 0.12.9** (MIT), the React Native binding for **llama.cpp** (MIT). It runs the LLM and the embedder.
-- CPU on the Infinix Hot 50 Pro+ (2 threads), our only demo phone.
+- Runs on the CPU (2 threads). Demo phone: **Tecno Pova 4** (MediaTek Helio G99, 8 GB). Development testing and the benchmarks in `docs/benchmarks.md` were done on an Infinix Hot 50 Pro+ (Helio G100), which has the same CPU layout (2× Cortex-A76 + 6× Cortex-A55).
 
 ## Cloud APIs at runtime
 
@@ -74,10 +69,9 @@ These calls are made from native Android code, so the JS cloud-call counter does
 | Tool | What it was used for |
 |---|---|
 | Gemini | First draft of the product spec |
-| Claude (incl. Claude Code) | Spec review and team plan (`docs/`), app scaffold, runtime, ingest and review work in several PRs (commits marked "Co-authored-by: Claude") |
+| Claude (incl. Claude Code) | Spec review and team plan (`docs/`), app scaffold, runtime, ingest, Ask my notes, Quiz, tutor hardening and code reviews in several PRs (commits marked "Co-authored-by: Claude"); the demo video, made with Claude Code from prompts by Joshua and Jedrick |
 | Kiro | Part D: README, benchmarks write-up, a TutorSheet prototype, the 50-attempt leak gate and this file |
 | ChatGPT | Generated every image in the app (see Images below) |
-| TODO | Add any other AI tool a teammate used (e.g. Devin, Copilot, ChatGPT) |
 
 Every AI-written change was reviewed, tested and committed by a team member, through pull requests.
 
