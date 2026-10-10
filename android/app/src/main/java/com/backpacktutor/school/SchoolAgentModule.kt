@@ -16,13 +16,28 @@ import java.util.concurrent.Executors
 
 class SchoolAgentModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
   private val executor = Executors.newSingleThreadExecutor()
-  init { active = WeakReference(this) }
+  init { active = WeakReference(this); markReady(false) }
   override fun getName() = "SchoolAgent"
   companion object {
     private var active = WeakReference<SchoolAgentModule>(null)
+    // Bubble chat: questions wait here until the JS side says it is listening.
+    private val waiting = ArrayDeque<Pair<String, String>>()
+    private var jsReady = false
     fun changed() {
       val module = active.get() ?: return
       if (module.context.hasActiveReactInstance()) module.context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java).emit("SchoolAgentChanged", null)
+    }
+    @Synchronized fun markReady(ready: Boolean) { jsReady = ready }
+    /** Sends a bubble chat question to JS, now if JS is listening, otherwise as soon as it is. */
+    @Synchronized fun ask(id: String, text: String) { waiting.addLast(id to text); deliver() }
+    @Synchronized fun deliver() {
+      val module = active.get() ?: return
+      if (!jsReady || !module.context.hasActiveReactInstance()) return
+      val events = module.context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      while (waiting.isNotEmpty()) {
+        val (id, text) = waiting.removeFirst()
+        events.emit("BubbleChatQuestion", Arguments.createMap().apply { putString("id", id); putString("text", text) })
+      }
     }
   }
   private fun run(promise: Promise, action: () -> Any?) {
@@ -139,9 +154,11 @@ class SchoolAgentModule(private val context: ReactApplicationContext) : ReactCon
       promise.resolve(requested)
     }
   }
+  @ReactMethod fun bubbleReady() { markReady(true); deliver() }
+  @ReactMethod fun bubbleReply(id: String, text: String) { AgentBubbleService.reply(context, id, text) }
   @ReactMethod fun addListener(eventName: String) = Unit
   @ReactMethod fun removeListeners(count: Int) = Unit
-  override fun invalidate() { executor.shutdown(); super.invalidate() }
+  override fun invalidate() { markReady(false); executor.shutdown(); super.invalidate() }
 }
 
 class SchoolAgentPackage : ReactPackage {
