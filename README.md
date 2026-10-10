@@ -1,10 +1,10 @@
 # 🎒 Backpack Tutor
 
-**An offline study app that turns your own handouts into puzzles and coaches you with an AI tutor that never gives the answer away. Everything runs on your phone, even in airplane mode.**
+**An offline study app that turns your own handouts into games and coaches you with an AI tutor that never gives the answer away. Everything runs on your phone, even in airplane mode.**
 
 > Built for the Local AI hackathon theme: *"useful when the cloud disappears."*
 
-> ⚠️ **Status:** In active development during the hackathon.
+> **Status:** hackathon submission. Runs on a Tecno Pova 4 (budget MediaTek phone) with no internet.
 
 ---
 
@@ -85,12 +85,15 @@ If you type the correct answer into the chat, the game marks it solved without e
 - [x] Daily Term
 - [x] Missed-term tracking
 - [x] Streaks and progress
-- [ ] Tutor chat tab with answers checked against your notes (after #22)
-- [ ] Review terms, add pages to a deck, multiple-choice quiz (#21, #22)
+- [x] Review terms (fix OCR misreads, delete, add to puzzle) and add pages to a deck
+- [x] Multiple-choice Quiz (wrong options picked by the embedding model)
+- [x] Written answers in "Ask my notes", checked against your notes and cited
+- [ ] Tutor chat tab built on the checked answers (in progress)
 
 **Nice-to-have (P2)**
 - [x] Optional School Planner: syncs Google Classroom / Microsoft Teams tasks when online (off by default)
-- [ ] Taglish tutor replies · read hints aloud
+- [x] Taglish quick replies in the tutor ("Pa-hint po")
+- [ ] Read hints aloud
 
 ---
 
@@ -99,7 +102,7 @@ If you type the correct answer into the chat, the game marks it solved without e
 | Layer | Technology |
 |---|---|
 | App | React Native 0.87 CLI (TypeScript, New Architecture), Android. iOS code exists but isn't built or tested |
-| On-device LLM | [llama.rn](https://github.com/mybigday/llama.rn) 0.12 (llama.cpp): CPU on the Infinix (2 threads) |
+| On-device LLM | [llama.rn](https://github.com/mybigday/llama.rn) 0.12 (llama.cpp): CPU, 2 threads on budget MediaTek phones |
 | OCR | Google ML Kit Text Recognition v2 (bundled, works offline) |
 | Database | op-sqlite with FTS5 full-text search |
 | Vector search | Cosine similarity on on-device embeddings |
@@ -130,7 +133,8 @@ Why this model: see [`docs/benchmarks.md`](docs/benchmarks.md).
 
 | Phone | Chip | How the AI runs | Role |
 |---|---|---|---|
-| **Infinix Hot 50 Pro+** | Helio G100, 8 GB | CPU, 2 threads | **The demo and test phone** ("Maria's phone") |
+| **Tecno Pova 4** | Helio G99, 8 GB | CPU, 2 threads | **Demo phone** ("Maria's phone") |
+| Infinix Hot 50 Pro+ | Helio G100, 8 GB | CPU, 2 threads | Development and benchmark phone (same CPU layout as the Pova 4) |
 
 The app picks settings for each phone automatically (`src/services/device/deviceProfile.ts`). Most budget Android phones in the Philippines use MediaTek chips with Mali GPUs, which llama.rn can't use yet, so the AI runs on the CPU there.
 
@@ -199,14 +203,15 @@ AppBuildersPH/
 └── src/
     ├── app/                  # App.tsx, navigation.tsx (tabs + stack), theme
     ├── screens/              # Splash, Home, Decks, Games, Progress, Ingest (Scan Notes),
-    │                         # Wordscape, Crossword, DailyTerm, AskNotes, SchoolPlanner,
-    │                         # ProofPanel, DevBench, UiCheck
+    │                         # Wordscape, Crossword, DailyTerm, Quiz, ReviewTerms, AskNotes,
+    │                         # SchoolPlanner, ProofPanel, DevBench, UiCheck
     ├── components/           # TutorSheet, ui, Gradient, deck and streak components
     ├── assets/               # images (AI-generated) and sample handout + terms
     ├── services/
     │   ├── ai/               # llama.rn bridge, prompts, term extractor, tutor, leak guard, DevBench
     │   ├── ingest/           # OCR, file import, chunker, pipeline
-    │   ├── rag/              # notes search, term selection
+    │   ├── rag/              # notes search, grounded answers, term selection
+    │   ├── quiz/             # multiple-choice quiz
     │   ├── game/             # crossword builder, Wordscape layout, daily term
     │   ├── db/               # database schema + queries
     │   ├── device/           # per-phone settings
@@ -219,7 +224,7 @@ AppBuildersPH/
 
 ## 📊 Benchmarks
 
-Measured on the **Infinix Hot 50 Pro+** (CPU, 2 threads, Gemma 3 1B Q4_0). Details in [`docs/benchmarks.md`](docs/benchmarks.md).
+Measured on the **Infinix Hot 50 Pro+** (Helio G100, CPU, 2 threads, Gemma 3 1B Q4_0). The demo phone, the Tecno Pova 4 (Helio G99), has the same CPU layout. Details in [`docs/benchmarks.md`](docs/benchmarks.md).
 
 | Metric | Result |
 |---|---|
@@ -228,7 +233,7 @@ Measured on the **Infinix Hot 50 Pro+** (CPU, 2 threads, Gemma 3 1B Q4_0). Detai
 | Prompt speed | ~80 tokens/s |
 | Terms found per handout page | **~10** on typed text, 7–8 from a real photo |
 | Time to read a whole page | ~50 s |
-| Tutor answer leaks (visible) | **0 / 20** (50-attempt run on the Infinix: pending) |
+| Tutor answer leaks (visible) | **0 / 20** |
 | Cloud calls | **0** |
 
 ---
@@ -248,11 +253,11 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md): branch from `main`, open a pull reques
 
 | Part | Owns | Member |
 |---|---|---|
-| A: Runtime | Project setup, llama.rn, model benchmark, Proof Panel, release builds | [@jjoshua-sek](https://github.com/jjoshua-sek), Kiev Gonzales (device builds) |
+| A: Runtime | Project setup, llama.rn, model benchmark, Proof Panel, release builds | Joshua ([@jjoshua-sek](https://github.com/jjoshua-sek)), Kiev Gonzales (device builds) |
 | B: Ingest and data | Camera OCR, chunking, term extraction, database, Ask my notes | Michael ([@delosreyesmichaeljeffrey-stack](https://github.com/delosreyesmichaeljeffrey-stack)) |
 | C: Games and UI | Wordscape, Crossword, Daily Term, the app UI | Jedrick ([@def-jedd](https://github.com/def-jedd)) |
 | D: Tutor | Leak guard and its tests, tutor prompt, leak gate, README, disclosures | Kiev Gonzales ([@kvzl0](https://github.com/kvzl0)) |
-| Pitch | Slides, demo script, backup video | TODO |
+| Pitch | Slides, demo script, demo video | Joshua ([@jjoshua-sek](https://github.com/jjoshua-sek)) leads, with Jedrick. Demo video made with Claude Code from their prompts |
 
 ## 📄 License
-TODO: choose a license (e.g., MIT)
+Our code is released under the [MIT License](LICENSE). The models keep their own licenses (Gemma Terms of Use, Apache-2.0); see [`DISCLOSURES.md`](DISCLOSURES.md).

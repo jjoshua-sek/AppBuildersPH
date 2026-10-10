@@ -9,7 +9,7 @@
 | Hackathon theme | Local AI: "useful when the cloud disappears" |
 | Status | **This is the build spec.** v4 retargets the app to the three phones we demo on (§0.4, §5). The pure-logic modules are implemented and unit-tested in `src/services/` (§8). Demo plan: `docs/DEVICES_AND_DEMO.md`. Work split: `docs/TEAM_PLAN.md`. |
 
-> **Update: iPhones dropped.** The team has no iPhone available, so the Infinix Hot 50 Pro+ is the only demo and test phone. The iPhone 13 Pro Max / iPhone 11 rows, the `ios-metal` / `ios-cpu` tiers and the iOS demo beats below are historical; skip them. Current device plan: `docs/DEVICES_AND_DEMO.md`.
+> **Update: iPhones dropped.** The team has no iPhone available. The demo phone is the Tecno Pova 4 (Helio G99); development and benchmarks were done on the Infinix Hot 50 Pro+ (Helio G100), which has the same CPU layout. The iPhone 13 Pro Max / iPhone 11 rows, the `ios-metal` / `ios-cpu` tiers and the iOS demo beats below are historical; skip them. Current device plan: `docs/DEVICES_AND_DEMO.md`.
 
 ---
 
@@ -192,7 +192,7 @@ Clue → term recall is active recall. Re-surfacing missed terms is spaced repet
 | iPhone 11 | A13 Bionic | 4 GB | CPU (A13 is below the Apple7 GPU family llama.cpp's Metal kernels need) | `ios-cpu` |
 | Infinix Hot 50 Pro+ | MediaTek Helio G100 (2× A76 + 6× A55), Mali-G57 MC2 | 8 GB | CPU | `android-cpu` |
 
-The Infinix is our budget phone (CPU only), the kind of phone our users actually own, and **the main demo phone**. **Every model and setting decision is made on the Infinix.** If it runs well there, it runs everywhere. (The Tecno Pova 4 is not used.)
+The Infinix is our budget phone (CPU only), the kind of phone our users actually own, and **the main demo phone**. **Every model and setting decision is made on the Infinix.** If it runs well there, it runs everywhere. (Update: the demo phone is now the Tecno Pova 4, which has the same CPU layout; see the note at the top.)
 
 ### 5.2 One LLM for all three phones
 

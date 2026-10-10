@@ -1,6 +1,8 @@
 # Benchmarks
 
-Paste DevBench reports from the Infinix here, one block per model. See `docs/RUNTIME_SETUP.md` §4.
+Paste DevBench reports here, one block per phone and model. See `docs/RUNTIME_SETUP.md` §4.
+
+Runs 1–5 were measured on the Infinix Hot 50 Pro+ (Helio G100). The demo phone is now the Tecno Pova 4 (Helio G99), which has the same CPU layout (2× Cortex-A76 + 6× Cortex-A55) and uses the same `android-cpu` settings.
 
 ## Decision
 - **Chosen LLM: Gemma 3 1B IT, Q4_0**, made with `llama-quantize --pure` from the F16 file in `ggml-org/gemma-3-1b-it-GGUF` (569 MB).

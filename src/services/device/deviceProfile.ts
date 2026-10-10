@@ -8,8 +8,9 @@ import type { DeviceTier } from '../../types';
  * - iPhone 13 Pro Max: A15, 6 GB, Metal GPU                 -> 'ios-metal'
  * - iPhone 11: A13, 4 GB; below the Apple7 GPU family that
  *   llama.cpp's Metal kernels need, so CPU only               -> 'ios-cpu'
- * - Infinix Hot 50 Pro+ (Helio G100): 2x Cortex-A76 + 6x A55,
- *   8 GB, Mali GPU with no llama.rn backend, so CPU only      -> 'android-cpu'
+ * - Tecno Pova 4 (Helio G99, the demo phone) and Infinix Hot 50 Pro+
+ *   (Helio G100, benchmarks): 2x Cortex-A76 + 6x A55, 8 GB,
+ *   Mali GPU with no llama.rn backend, so CPU only            -> 'android-cpu'
  */
 export type Profile = {
   tier: DeviceTier;

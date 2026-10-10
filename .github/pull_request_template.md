@@ -9,7 +9,7 @@
 
 ## How I tested it
 - [ ] `npx tsc --noEmit && npm run lint && npm test`
-- [ ] On the Infinix Hot 50 Pro+
+- [ ] On the demo phone (Tecno Pova 4)
 - [ ] In airplane mode (if it touches the AI loop)
 
 ## Screenshots / numbers

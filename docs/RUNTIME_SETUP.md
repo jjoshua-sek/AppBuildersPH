@@ -1,6 +1,6 @@
 # Runtime Setup (Part A)
 
-Step by step: from a fresh clone to models running on our demo phone, the Infinix Hot 50 Pro+, then the hour-1 benchmark. The iPhones are not used, so there are no iOS steps.
+Step by step: from a fresh clone to models running on our demo phone, the Tecno Pova 4, then the hour-1 benchmark. Any arm64 Android phone works the same way; the benchmarks were first run on an Infinix Hot 50 Pro+. The iPhones are not used, so there are no iOS steps.
 
 ## 1. Get the models (laptop, once)
 
@@ -11,7 +11,7 @@ Put them in a `models/` folder outside the repo (`*.gguf` is gitignored anyway).
 | `gen.gguf` | **Gemma 3 1B IT, Q4_0 (chosen, 569 MB)** | Made from the F16 file in `ggml-org/gemma-3-1b-it-GGUF` (no license gate), steps below |
 | `emb.gguf` | snowflake-arctic-embed-xs, Q8_0 | `ChristianAzinn/snowflake-arctic-embed-xs-gguf` |
 
-Why this model: see `docs/benchmarks.md` (Q4_0 vs. Q8_0 on the Infinix).
+Why this model: see `docs/benchmarks.md` (Q4_0 vs. Q8_0, measured on the Infinix Hot 50 Pro+).
 
 **Make the Q4_0 file (Windows, about 10 minutes):**
 1. Download the `…f16.gguf` file from https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF (Files and versions) into `C:\models`.
@@ -22,9 +22,9 @@ Why this model: see `docs/benchmarks.md` (Q4_0 vs. Q8_0 on the Infinix).
    ```
    `--pure` keeps every tensor in Q4_0, which llama.cpp repacks for fast ARM CPU math. The result is about 537 MiB.
 
-## 2. Android: Infinix Hot 50 Pro+
+## 2. Android: Tecno Pova 4
 
-One-time phone setup: Settings → About phone → tap **Build number** 7 times → Developer options → **USB debugging** on. Infinix (XOS) may also need **"Install via USB"** turned on in Developer options.
+One-time phone setup: Settings → About phone → tap **Build number** 7 times → Developer options → **USB debugging** on. Tecno (HiOS) and Infinix (XOS) may also need **"Install via USB"** turned on in Developer options. If `adb` says *more than one device/emulator*, add `-s <serial>` (from `adb devices`) to each command.
 
 ```bash
 npm install
@@ -61,7 +61,7 @@ Tap **Retry** on the splash screen.
 - Airplane mode on, Wi-Fi off: **Cloud calls this session** stays **0**.
 
 ## 4. Hour-1 benchmark (DevBench)
-For **each candidate model** on the Infinix:
+For **each candidate model** on the demo phone:
 1. **Speed:** prompt and generation tok/s.
 2. **Thread sweep** (Android): 2 / 4 / 6 threads. If the winner isn't 4, change `n_threads` for `android-cpu` in `src/services/device/deviceProfile.ts`.
 3. **Term extraction:** 3 fixed chunks → JSON parse rate, valid terms, seconds per chunk.
@@ -69,4 +69,4 @@ For **each candidate model** on the Infinix:
 
 Long-press the report, copy it, paste it into `docs/benchmarks.md`, and open a PR.
 
-**Pick rule (on the Infinix):** ≥ 8 tok/s generation, JSON 3/3, load < 10 s, < 30 s per chunk, then the lowest raw leak rate.
+**Pick rule (on the demo phone):** ≥ 8 tok/s generation, JSON 3/3, load < 10 s, < 30 s per chunk, then the lowest raw leak rate.
